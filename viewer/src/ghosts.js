@@ -134,6 +134,14 @@ export class Ghosts {
     this.group.visible = false;
   }
 
+  /** Additive glow on dark looks; solid red on the white blueprint look. */
+  setLook(look) {
+    const blueprint = look === 'blueprint';
+    this.material.blending = blueprint ? THREE.NormalBlending : THREE.AdditiveBlending;
+    this.material.needsUpdate = true;
+    this.uniforms.uTint.value.set(blueprint ? 0xd8321a : GHOST_TINT.getHex());
+  }
+
   /** Update for replay time t. Returns the ghost state (or null) for the debug surface. */
   update(t) {
     const s = ghostStateAt(this.entries, t);

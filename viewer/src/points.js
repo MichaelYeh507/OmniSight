@@ -7,6 +7,14 @@ export const STALE_START = 5; // seconds of full colour
 export const STALE_END = 30; // fully stale from here on
 const STALE_COLOR = new THREE.Color(0.55, 0.62, 0.72);
 
+// Colour treatments of the static map (?look=). "color" keeps the recorded RGB and fades it
+// toward STALE_COLOR; the palette looks map fresh -> stale onto two colours instead.
+export const LOOKS = {
+  color: null,
+  xray: { fresh: 0x9ef4ff, stale: 0x24476b }, // reference: glowing cyan x-ray walls on black
+  blueprint: { fresh: 0x34486a, stale: 0xa8b6c8 }, // reference: architectural wireframe on white; drawn with half-size points so surfaces stipple
+};
+
 const vertexShader = /* glsl */ `
   attribute vec4 aColor;
   attribute float aRadius;
@@ -17,10 +25,11 @@ const vertexShader = /* glsl */ `
   uniform float uMinPx;
   uniform float uMaxPx;
   uniform float uSizeScale;
+  uniform vec3 uClipMax;       // cutaway: hide points above y or beyond z (recording frame)
   varying vec4 vColor;
   varying float vAge;
   void main() {
-    if (uIgnoreTime < 0.5 && aTime > uClock) {
+    if ((uIgnoreTime < 0.5 && aTime > uClock) || position.y > uClipMax.y || position.z > uClipMax.z) {
       // not seen yet: park it outside clip space, never rasterised
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       gl_PointSize = 0.0;
@@ -44,6 +53,9 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uStaleColor;
   uniform float uRound;
   uniform float uBrightness;
+  uniform float uXray;        // 0: recorded colour, 1: palette look
+  uniform vec3 uXrayFresh;
+  uniform vec3 uXrayStale;
   varying vec4 vColor;
   varying float vAge;
   void main() {
@@ -55,7 +67,10 @@ const fragmentShader = /* glsl */ `
     float lum = dot(vColor.rgb, vec3(0.299, 0.587, 0.114));
     vec3 stale = uStaleColor * (0.35 + 0.65 * lum);
     // colours are sRGB bytes written straight to the sRGB framebuffer: no conversion
-    gl_FragColor = vec4(mix(vColor.rgb, stale, k) * uBrightness, 1.0);
+    vec3 recorded = mix(vColor.rgb, stale, k);
+    // palette look: fresh-to-stale colours scaled by the recorded luminance, so texture and edges survive
+    vec3 palette = mix(uXrayFresh, uXrayStale, k) * (0.4 + 0.8 * lum);
+    gl_FragColor = vec4(mix(recorded, palette, uXray) * uBrightness, 1.0);
   }
 `;
 
@@ -92,6 +107,10 @@ export class PointCloud {
       uStaleColor: { value: STALE_COLOR.clone() },
       uRound: { value: opts.round ? 1 : 0 },
       uBrightness: { value: opts.brightness ?? 1 },
+      uXray: { value: 0 },
+      uClipMax: { value: new THREE.Vector3(1e9, 1e9, 1e9) },
+      uXrayFresh: { value: new THREE.Color(LOOKS.xray.fresh) },
+      uXrayStale: { value: new THREE.Color(LOOKS.xray.stale) },
     };
     const material = new THREE.ShaderMaterial({ uniforms: this.uniforms, vertexShader, fragmentShader });
 
@@ -119,6 +138,21 @@ export class PointCloud {
     if (c !== this.drawCount) {
       this.drawCount = c;
       this.geometry.setDrawRange(0, c);
+    }
+  }
+
+  /** Cutaway clip: { y, z } hides points above y or with z beyond z; null shows everything. */
+  setCutaway(clip) {
+    this.uniforms.uClipMax.value.set(1e9, clip ? clip.y : 1e9, clip ? clip.z : 1e9);
+  }
+
+  /** Switch the colour treatment: 'color', 'xray' or 'blueprint'. */
+  setLook(look) {
+    const palette = LOOKS[look];
+    this.uniforms.uXray.value = palette ? 1 : 0;
+    if (palette) {
+      this.uniforms.uXrayFresh.value.set(palette.fresh);
+      this.uniforms.uXrayStale.value.set(palette.stale);
     }
   }
 

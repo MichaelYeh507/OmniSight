@@ -30,7 +30,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: viewer/package-lock.json
-      - uses: actions/configure-pages@v5
       - run: npm ci
         working-directory: viewer
       - run: npm run build
@@ -46,5 +45,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # Needs Settings > Pages > Source = "GitHub Actions"; until then only this job fails and the build above still proves the site compiles.
+      - uses: actions/configure-pages@v5
       - id: deployment
         uses: actions/deploy-pages@v5

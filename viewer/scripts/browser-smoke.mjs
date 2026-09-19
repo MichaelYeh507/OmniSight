@@ -128,11 +128,11 @@ try {
   await writeFile(resolve(output, 'responder.png'), Buffer.from(responderShot.data, 'base64'));
   await evaluate("document.getElementById('hud').classList.remove('hidden')");
   // Portal depth trick, forced on in commander mode: the hole follows the camera's forward ray onto the wall plane.
-  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&portaldebug=1` });
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&portaldebug=1&cutaway=0` });
   await waitFor('!!window.__omni?.portal && __omni.portal.enabled');
   // pause before seeking to the end: a playing clock at t == duration wraps to 0 on the next frame
   await evaluate('__omni.clockObj.pause(); __omni.clockObj.seek(20)');
-  await waitFor('__omni.clock >= 20 && __omni.points > 100000');
+  await waitFor('__omni.clock >= 20 && __omni.points >= __omni.data.static.count');
   const portal = await evaluate('({...__omni.portal, visible: __omni.sceneRoot.getObjectByName("portal").visible, errors: __omni.errors})');
   assert.ok(portal.visible && !portal.miss && Math.abs(portal.hit[2] - (-1.8)) < 1e-6, JSON.stringify(portal));
   assert.deepEqual(portal.errors, []);
@@ -141,15 +141,46 @@ try {
   const portalShot = await command('Page.captureScreenshot', { format: 'png' });
   await writeFile(resolve(output, 'portal-debug.png'), Buffer.from(portalShot.data, 'base64'));
   // same view without the portal, for comparison: no portal object at all in plain commander mode
-  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake` });
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&cutaway=0` });
   await waitFor('!!window.__omni?.clockObj && window.__omni.points > 0');
   assert.equal(await evaluate("__omni.sceneRoot.getObjectByName('portal') ? true : false"), false);
   await evaluate("__omni.clockObj.pause(); __omni.clockObj.seek(20); document.getElementById('hud').classList.add('hidden')");
-  await waitFor('__omni.clock >= 20 && __omni.points > 100000');
+  await waitFor('__omni.clock >= 20 && __omni.points >= __omni.data.static.count');
   await new Promise((ok) => setTimeout(ok, 300));
   const noPortalShot = await command('Page.captureScreenshot', { format: 'png' });
   await writeFile(resolve(output, 'portal-off.png'), Buffer.from(noPortalShot.data, 'base64'));
   await evaluate("document.getElementById('hud').classList.remove('hidden')");
+  // Looks: x-ray is the default; color keeps the recorded RGB; blueprint is dark-on-white and hides the outside wall.
+  const looks = {};
+  for (const look of ['xray', 'color', 'blueprint']) {
+    await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&look=${look}` });
+    await waitFor('!!window.__omni?.clockObj && window.__omni.points > 0');
+    await evaluate("__omni.clockObj.pause(); __omni.clockObj.seek(9); document.getElementById('hud').classList.add('hidden')");
+    await waitFor('__omni.clock >= 9');
+    await new Promise((ok) => setTimeout(ok, 300));
+    const shot = await command('Page.captureScreenshot', { format: 'png' });
+    await writeFile(resolve(output, `look-${look}.png`), Buffer.from(shot.data, 'base64'));
+    await evaluate("document.getElementById('btn-topdown').click()");
+    await new Promise((ok) => setTimeout(ok, 400));
+    const top = await command('Page.captureScreenshot', { format: 'png' });
+    await writeFile(resolve(output, `look-${look}-topdown.png`), Buffer.from(top.data, 'base64'));
+    await evaluate("document.getElementById('btn-topdown').click()");
+    looks[look] = await evaluate(`({look: __omni.look, bodyLook: document.body.dataset.look, sel: document.getElementById('sel-look').value,
+      cutaway: __omni.cutaway, alignVisible: __omni.sceneRoot.children[1].visible, errors: __omni.errors})`);
+    assert.equal(looks[look].cutaway, true);
+    assert.equal(looks[look].look, look);
+    assert.equal(looks[look].bodyLook, look);
+    assert.equal(looks[look].sel, look);
+    assert.deepEqual(looks[look].errors, []);
+  }
+  assert.equal(looks.xray.alignVisible, false); // cutaway hides the outside wall in commander mode
+  await evaluate("document.getElementById('btn-cutaway').click()");
+  await waitFor('__omni.cutaway === false');
+  assert.equal(await evaluate('__omni.sceneRoot.children[1].visible'), false); // blueprint never shows it
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&cutaway=0` });
+  await waitFor('!!window.__omni?.clockObj && window.__omni.points > 0');
+  assert.equal(await evaluate('__omni.cutaway'), false);
+  assert.equal(await evaluate('__omni.sceneRoot.children[1].visible'), true);
   await evaluate("localStorage.setItem('omnisight.alignment.v1', JSON.stringify({x: 0.1, y: -0.2, z: 0.3, yaw: 1}))");
   await command('Page.navigate', { url: `${base}?mode=ar&scene=box` });
   await waitFor("!!window.__omni?.alignment && document.getElementById('btn-enter-ar').textContent === 'AR unavailable'");
@@ -205,7 +236,7 @@ try {
   await evaluate("localStorage.setItem('omnisight.alignment.v1', JSON.stringify({x: 1, yaw: 20}))");
   const budgets = [];
   for (const budget of [200000, 400000, 800000, 0]) {
-    await command('Page.navigate', { url: `${base}?mode=commander&scene=stress&budget=${budget}&bench=1&ax=1&ayaw=20` });
+    await command('Page.navigate', { url: `${base}?mode=commander&scene=stress&budget=${budget}&bench=1&ax=1&ayaw=20&cutaway=0` });
     await waitFor('!!window.__omni?.clockObj && __omni.clock === __omni.data.duration && __omni.points > 0');
     const counts = await evaluate(`({budget: __omni.budget, total: __omni.data.static.count,
       staticDrawn: __omni.points - __omni.data.alignment.count, playing: __omni.clockObj.playing, errors: __omni.errors})`);
@@ -217,7 +248,7 @@ try {
     budgets.push(counts);
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ commander, ghost: { seen, fading }, responder, portal, ar, alignment, budgets, output }, null, 2));
+  console.log(JSON.stringify({ commander, ghost: { seen, fading }, responder, portal, looks, ar, alignment, budgets, output }, null, 2));
   await send('Browser.close');
 } finally {
   ws?.close();

@@ -22,6 +22,8 @@ async function boot() {
   omni.budget = params.budget;
   omni.fbscale = params.fbscale;
   document.body.dataset.mode = params.mode;
+  document.body.dataset.look = params.look;
+  omni.look = params.look;
   const status = $('status');
 
   // --- renderer, scene, camera
@@ -68,11 +70,15 @@ async function boot() {
     alignmentCloud = new PointCloud(data.alignment, { ignoreTime: true, round: params.round, maxPx, sizeScale: params.psize });
     sceneRoot.add(alignmentCloud.object);
   }
+  staticCloud.setLook(params.look);
+  if (alignmentCloud) alignmentCloud.setLook(params.look);
+  if (params.look === 'blueprint') staticCloud.uniforms.uSizeScale.value *= 0.5; // stippled surfaces instead of solid slabs
 
   // --- person ghosts (drawn through walls; hold + fade handled inside)
   let ghosts = null;
   if (data.people && data.people.totalPoints > 0) {
     ghosts = new Ghosts(data.people, { maxPx: Math.min(32, maxPointSize(renderer)), sizeScale: params.psize });
+    ghosts.setLook(params.look);
     sceneRoot.add(ghosts.group);
   }
   omni.ghostFrames = data.people ? data.people.entries.length : 0;
@@ -102,12 +108,13 @@ async function boot() {
         status: $('ar-status'), tracking: $('ro-tracking'), benchmark: $('btn-benchmark'),
         error: $('error-banner'), xrError: $('xr-error'),
       } })
-    : setupCommander({ renderer, scene, camera, sceneRoot, data, alignmentCloud });
+    : setupCommander({ renderer, scene, camera, sceneRoot, data, alignmentCloud, staticCloud, look: params.look, cutaway: params.cutaway ?? true });
   if (params.mode === 'ar') {
     setupAlignment({ sceneRoot, alignmentCloud, overrides: params.align, omni });
   }
   const benchmark = setupBenchmark({ clock, omni, params, button: $('btn-benchmark'), status: $('benchmark-status') });
-  const hud = setupHud({ clock, manifest: data.manifest, onTopDown: mode.toggleTopDown });
+  const hud = setupHud({ clock, manifest: data.manifest, onTopDown: mode.toggleTopDown, onCutaway: mode.setCutaway ? () => (omni.cutaway = mode.setCutaway(!mode.cutaway)) : null, cutaway: !!mode.cutaway });
+  omni.cutaway = !!mode.cutaway;
   if (params.mode !== 'ar') {
     $('hud').classList.remove('hidden');
     $('pre').classList.add('hidden');
@@ -125,6 +132,7 @@ async function boot() {
     omni.points = staticCloud.drawCount + (alignmentCloud && alignmentCloud.visible ? alignmentCloud.count : 0);
     omni.ghost = ghosts ? ghosts.update(t) : null;
     if (omni.ghost && omni.ghost.visible) omni.points += omni.ghost.count;
+    omni.cutaway = !!mode.cutaway;
     omni.responder = responder ? responder.update(t) : null;
     if (portal) {
       // the portal is for x-ray mode: off while aligning (the wall cloud must be fully visible) and before the XR session

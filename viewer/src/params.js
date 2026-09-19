@@ -3,6 +3,8 @@
 //   &fbscale=<xr framebuffer scale>  &round=1  &portal=0  &renderer=points|spark  &psize=<size multiplier>
 //   &bench=1 holds the complete scene, paused, for point-budget measurements
 //   &portaldebug=1 draws the portal in commander mode (headless verification only)
+//   &cutaway=0|1  commander only: clip the ceiling and the near wall so the room reads as a doll-house (default on)
+//   &look=xray|color|blueprint  x-ray (default): cyan fresh -> dim blue stale; color: recorded RGB; blueprint: dark on white (commander)
 //   &ax=&ay=&az=&ayaw=  (alignment override in meters / degrees)
 const q = new URLSearchParams(location.search);
 
@@ -25,6 +27,8 @@ export const params = Object.freeze({
   portaldebug: q.get('portaldebug') === '1', // draw the portal in commander mode too (verification only)
   renderer: q.get('renderer') === 'spark' ? 'spark' : 'points',
   psize: num('psize', 1), // point size multiplier
+  cutaway: q.has('cutaway') ? q.get('cutaway') === '1' : null, // commander default: on (doll-house view)
+  look: ['xray', 'color', 'blueprint'].includes(q.get('look')) ? q.get('look') : 'xray', // colour treatment of the static map
   align: { x: num('ax', NaN), y: num('ay', NaN), z: num('az', NaN), yaw: num('ayaw', NaN) },
 });
 

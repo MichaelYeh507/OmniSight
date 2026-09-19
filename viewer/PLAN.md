@@ -14,7 +14,7 @@ Companion to `CLAUDE.md`, `docs/CONTRACT.md` and "Viewer design notes (Dev B)" i
 | B5 | first real scene from A: validator, alignment within ~10 cm at the jig | |
 | B6 | person ghosts with hold, 15 s fade, "person, last seen N s ago" label; staleness legend | implemented 2026-09-19: `src/ghosts.js` + pure `ghostStateAt` in `scene-data.js` (tested). Seen while the latest people frame is under 0.75 s old, then held and faded over 15 s; label sprite at the centroid; additive red-orange, depthTest off so it shows through walls. Headless smoke verifies seen / fading / hidden states and screenshots on C's `fake` scene. **Not yet seen on the Samsung in AR** |
 | B7 | portal (gaze-following hole in the wall plane) and responder frustum + trail | implemented 2026-09-19: `src/portal.js` (depth-only oversized plane at wall_z + 0.02 with a 0.6 m hole, translated to where the camera's forward ray meets the wall plane in sceneRoot space; additive cyan ring; enabled only in AR x-ray mode, or `?portaldebug=1` in commander) and `src/responder.js` (frustum at the interpolated pose, trail via draw range; depthTest off). Pure `poseAt` / `intersectWallPlane` in `scene-data.js`, tested. Headless smoke: responder at 12 s (pose 120, 121 trail points) and portal-on vs portal-off screenshots at 20 s show the room only inside the ring. **Portal not yet seen in AR on the Samsung** |
-| B8 | commander polish (top-down, scrubber, caption), iPad Safari check, Pages URL + QR | |
+| B8 | commander polish (top-down, scrubber, caption), iPad Safari check, Pages URL + QR | polish implemented 2026-09-19: `?look=xray` (default; cyan fresh -> dim blue stale, luminance kept) / `color` (recorded RGB) / `blueprint` (dark-on-white, commander); HUD look selector; commander **cutaway** (default on: clips points above 0.9 m and within 8 cm behind the wall plane, hides the outside wall) with a HUD toggle and `?cutaway=0`. Smoke screenshots per look incl. top-down. Deploy workflow reordered so the build job passes before Pages is enabled. **Pending: repo owner flips Settings > Pages > Source to GitHub Actions (every run so far failed at configure-pages); iPad Safari check; QR once the Pages URL is live** |
 | B9 | bug duty on hero scenes, perf tuning with A, feature freeze at hour 16 | |
 | stretch | `?renderer=spark` with @sparkjsdev/spark 2.x (peer three >= 0.180); Points stays the fallback | after Phase 3 only |
 
@@ -70,7 +70,7 @@ All planned viewer files now exist; B8 is polish, deploy and device checks.
 - For comparable stress runs after testing nudges, use `&ax=0&ay=0&az=0&ayaw=0` to override arbitrary test offsets without overwriting the saved values. The phone currently stores x=0.04 m, y=-0.05 m, z=-1.74 m, yaw=0 degrees; these are control-test values, not a calibrated alignment.
 - Portal (B7): oversized plane at `wall_z + 0.02` with a 0.6 m hole, `MeshBasicMaterial({ colorWrite: false, depthWrite: true, side: DoubleSide })`, `renderOrder -1`; translate it so the hole sits where the gaze ray hits the wall plane in `sceneRoot` space. Ghosts, responder, ring and label are `transparent`, `depthTest: false`, ascending renderOrder so they show through the wall. `?portal=0` falls back to plain x-ray.
 - Ghosts (B6): one `Points` over the concatenated people arrays, `setDrawRange(entry.start, entry.count)` of the latest entry with `t <= clock`; hold the last frame, fade over 15 s, label sprite at the centroid redrawn once per second.
-- Visual direction from the user's reference images (see the memory note or ask): x-ray look on black, static map in translucent cyan-blue (fresh bright, stale dim), person ghosts in saturated red-orange with additive blending, portal ring cyan. Apply in B6 and B8, not before.
+- Visual direction from the user's reference images, applied in B6/B8: `LOOKS` in `points.js` map fresh -> stale onto a palette scaled by recorded luminance (x-ray cyan on black is the default; blueprint is dark-on-white for the commander); ghosts additive red-orange (solid red on blueprint); portal ring cyan. Commander cutaway (`CUTAWAY_HEIGHT` 0.9 m above the jig camera, and `wall_z - 0.08`) gives the doll-house view; never applied in AR.
 
 ## Integration gates and what B needs from A and C
 
@@ -84,6 +84,10 @@ All planned viewer files now exist; B8 is polish, deploy and device checks.
 | 16:00 | three hero scenes (`hero_small` if the download is slow on LTE) | A | freeze; only hero-exposed fixes after |
 
 Cut order if behind (from the design doc): Spark, second responder, timeline scrubber, portal (plain x-ray stays), commander polish. Never alignment, ghosts or staleness.
+
+## Session handoff, end of 2026-09-19
+
+B0-B8 built; B8 committed by the user after this note (branch `b/polish`). Pages source was flipped to "GitHub Actions" at the end of the session but no deploy has run since; the B8 push is the test. Waiting on: Dev A's first real scene (B5, Phases 1-2 exit checks), phone runs (400k/800k budget, ghosts + portal in AR, A54), iPad check, QR. Verification without a phone: `npm run smoke` from `viewer/` with the dev server running, then read the screenshots it names.
 
 ## Physical checklist (only the user can do these)
 

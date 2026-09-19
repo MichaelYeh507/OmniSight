@@ -2,8 +2,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-export function setupCommander({ renderer, scene, camera, sceneRoot, data, alignmentCloud }) {
-  scene.background = new THREE.Color(0x0b0f14);
+const THEMES = {
+  dark: { background: 0x0b0f14, grid: [0x3a5068, 0x1c2836], wall: 0x5c7590, alignmentBrightness: 0.45 },
+  blueprint: { background: 0xf4f6f8, grid: [0xb4c0cc, 0xdfe5eb], wall: 0x6c7a8a, alignmentBrightness: 1 },
+};
+
+export const CUTAWAY_HEIGHT = 0.9; // metres above the jig camera height: roughly head height, removes ceilings
+
+export function setupCommander({ renderer, scene, camera, sceneRoot, data, alignmentCloud, staticCloud, look = 'xray', cutaway = true }) {
+  const theme = look === 'blueprint' ? THEMES.blueprint : THEMES.dark;
+  scene.background = new THREE.Color(theme.background);
   renderer.setClearAlpha(1);
 
   const floorY = data.floorY ?? data.static.bounds.min[1];
@@ -13,7 +21,7 @@ export function setupCommander({ renderer, scene, camera, sceneRoot, data, align
 
   // floor grid at floor_y, 0.5 m cells
   const span = Math.ceil(Math.max(max[0] - min[0], Math.abs(min[2]) + 1, 6) / 2) * 2 + 4;
-  const grid = new THREE.GridHelper(span, span * 2, 0x3a5068, 0x1c2836);
+  const grid = new THREE.GridHelper(span, span * 2, theme.grid[0], theme.grid[1]);
   grid.position.set(cx, floorY - 0.005, cz);
   sceneRoot.add(grid);
 
@@ -32,13 +40,22 @@ export function setupCommander({ renderer, scene, camera, sceneRoot, data, align
     ];
     const wall = new THREE.LineLoop(
       new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color: 0x5c7590, transparent: true, opacity: 0.6 }),
+      new THREE.LineBasicMaterial({ color: theme.wall, transparent: true, opacity: 0.6 }),
     );
     sceneRoot.add(wall);
   }
 
-  // the recorded outside of the wall is context here, so show it dimmed
-  if (alignmentCloud) alignmentCloud.uniforms.uBrightness.value = 0.45;
+  // the recorded outside of the wall is context here: dimmed on dark looks, removed on the
+  // blueprint look so the room reads as an architectural cutaway
+  if (alignmentCloud) alignmentCloud.uniforms.uBrightness.value = theme.alignmentBrightness;
+  let cut = false;
+  const setCutaway = (on) => {
+    cut = !!on;
+    if (staticCloud) staticCloud.setCutaway(cut ? { y: CUTAWAY_HEIGHT, z: data.wallZ !== null ? data.wallZ - 0.08 : 1e9 } : null);
+    if (alignmentCloud) alignmentCloud.visible = !cut && look !== 'blueprint';
+    return cut;
+  };
+  setCutaway(cutaway);
 
   // stand behind the jig looking into the room
   const target = new THREE.Vector3(cx, floorY + 1.0, (data.wallZ ?? cz) - 1.2);
@@ -76,6 +93,10 @@ export function setupCommander({ renderer, scene, camera, sceneRoot, data, align
   return {
     name: 'commander',
     toggleTopDown,
+    setCutaway,
+    get cutaway() {
+      return cut;
+    },
     update() {
       controls.update();
     },

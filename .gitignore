@@ -27,3 +27,6 @@ viewer/public/scenes/stress/
 .DS_Store
 Thumbs.db
 *.log
+
+# Vite dep cache if the dev server is ever started from the repo root by mistake
+.vite/

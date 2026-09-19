@@ -5,7 +5,7 @@ import { omni } from './debug.js';
 
 const $ = (id) => document.getElementById(id);
 
-export function setupHud({ clock, manifest, onTopDown }) {
+export function setupHud({ clock, manifest, onTopDown, onCutaway, cutaway = false }) {
   const els = {
     play: $('btn-play'),
     restart: $('btn-restart'),
@@ -18,6 +18,8 @@ export function setupHud({ clock, manifest, onTopDown }) {
     topdown: $('btn-topdown'),
     caption: $('caption'),
     xr: $('ro-xr'),
+    look: $('sel-look'),
+    cutaway: $('btn-cutaway'),
   };
 
   // XR: a tap on the overlay must not also count as an XR "select" on the scene
@@ -52,6 +54,21 @@ export function setupHud({ clock, manifest, onTopDown }) {
   if (els.topdown) {
     if (onTopDown) els.topdown.addEventListener('click', () => els.topdown.classList.toggle('active', onTopDown()));
     else els.topdown.hidden = true;
+  }
+  if (els.cutaway) {
+    if (onCutaway) {
+      els.cutaway.classList.toggle('active', cutaway);
+      els.cutaway.addEventListener('click', () => els.cutaway.classList.toggle('active', onCutaway()));
+    } else els.cutaway.hidden = true;
+  }
+  if (els.look) {
+    els.look.value = omni.look || 'xray';
+    els.look.addEventListener('change', () => {
+      const url = new URL(location.href);
+      url.searchParams.set('look', els.look.value);
+      url.searchParams.set('t', clock.time.toFixed(1));
+      location.href = url.toString();
+    });
   }
   window.addEventListener('keydown', (e) => {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;

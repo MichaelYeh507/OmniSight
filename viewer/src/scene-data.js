@@ -61,3 +61,36 @@ export function poseIndexAt(trajectory, t) {
   }
   return lo - 1;
 }
+
+// --- ghosts -------------------------------------------------------------------
+// A person is "seen" while the latest ghost frame is recent; after that the viewer
+// holds the last frame and fades it out. Both stages live here so they are testable.
+export const GHOST_SEEN_GAP = 0.75; // s: a frame older than this means the person is no longer observed
+export const GHOST_FADE = 15; // s: fade duration once no longer observed
+
+/** Index of the latest people entry with entry.t <= t, or -1 (entries sorted by t). */
+export function ghostIndexAt(entries, t) {
+  let lo = 0;
+  let hi = entries.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (entries[mid].t <= t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo - 1;
+}
+
+/**
+ * Ghost state at replay time t: null before the first sighting, otherwise
+ * { index, entry, age, seen, alpha, lastSeen } where alpha is 1 while seen,
+ * fades to 0 over GHOST_FADE seconds afterwards, and lastSeen is whole seconds.
+ */
+export function ghostStateAt(entries, t) {
+  const index = ghostIndexAt(entries, t);
+  if (index < 0) return null;
+  const entry = entries[index];
+  const age = t - entry.t;
+  const seen = age <= GHOST_SEEN_GAP;
+  const alpha = seen ? 1 : Math.max(0, 1 - (age - GHOST_SEEN_GAP) / GHOST_FADE);
+  return { index, entry, age, seen, alpha, lastSeen: Math.floor(age) };
+}

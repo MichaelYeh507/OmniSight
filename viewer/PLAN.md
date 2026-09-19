@@ -12,7 +12,7 @@ Companion to `CLAUDE.md`, `docs/CONTRACT.md` and "Viewer design notes (Dev B)" i
 | B3 | AR mode on the Samsung: WebXR session, `local` space, HUD as dom-overlay, fps budget | implemented, `main` 5ce7d44 (committed/pushed by Dev B). Dev B confirmed camera/box/HUD and stable anchoring on S21 Ultra. First 200k stress run: 30.01 avg / 29.83 min half-second fps, XR 1080 x 2400, fbscale 1, no errors/resets. Exit button restores Enter correctly. **Higher caps and final budget pending** |
 | B4 | alignment nudges (x, y, z 1 cm, yaw 0.5 deg), alignment vs x-ray mode, localStorage + URL override | implemented, `main` 5ce7d44. 19 tests + build and Chrome smoke pass. Dev B confirmed X/Y/Z nudges, yaw and x-ray switching. Agent verified phone Save/reload persistence and temporary URL overrides without overwriting stored offsets. **Control checks passed; physical alignment was not attempted (B5)** |
 | B5 | first real scene from A: validator, alignment within ~10 cm at the jig | |
-| B6 | person ghosts with hold, 15 s fade, "person, last seen N s ago" label; staleness legend | |
+| B6 | person ghosts with hold, 15 s fade, "person, last seen N s ago" label; staleness legend | implemented 2026-09-19: `src/ghosts.js` + pure `ghostStateAt` in `scene-data.js` (tested). Seen while the latest people frame is under 0.75 s old, then held and faded over 15 s; label sprite at the centroid; additive red-orange, depthTest off so it shows through walls. Headless smoke verifies seen / fading / hidden states and screenshots on C's `fake` scene. **Not yet seen on the Samsung in AR** |
 | B7 | portal (gaze-following hole in the wall plane) and responder frustum + trail | |
 | B8 | commander polish (top-down, scrubber, caption), iPad Safari check, Pages URL + QR | |
 | B9 | bug duty on hero scenes, perf tuning with A, feature freeze at hour 16 | |
@@ -38,6 +38,7 @@ viewer/
   src/modes/ar.js        hand-written local-space session, support/permission failures, overlay, exit/re-entry, reset diagnostics
   src/benchmark.js       2 s warmup + 10 s XR-frame measurement, average and slowest half-second fps
   src/alignment.js       AR-only sceneRoot offsets, wall visibility, saved device offsets and URL precedence
+  src/ghosts.js          Ghosts: one Points over the concatenated people arrays, setDrawRange per frame, additive red-orange, canvas-sprite label, hold + fade
   src/main.js            boot: params -> loadScene -> PointClouds under sceneRoot -> clock -> mode -> hud -> setAnimationLoop
   scripts/omni-format.mjs   Node encoder: encodeChunk, encodePeople, writeScene
   scripts/make-scene.mjs    box room generator (--points --duration --person a:b --wall-z --floor-y --seed --name)
@@ -52,7 +53,7 @@ viewer/
   public/scenes/fake/    Dev C's Python-generated room (pending)
 ```
 
-Planned files: `src/ghosts.js` (B6), `src/portal.js` and `src/responder.js` (B7).
+Planned files: `src/portal.js` and `src/responder.js` (B7).
 
 ## Technical decisions already made
 

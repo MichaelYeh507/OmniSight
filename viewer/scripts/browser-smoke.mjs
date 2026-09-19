@@ -88,6 +88,32 @@ try {
   assert.equal(await evaluate("document.getElementById('btn-topdown').classList.contains('active')"), true);
   const screenshot = await command('Page.captureScreenshot', { format: 'png' });
   await writeFile(resolve(output, 'commander.png'), Buffer.from(screenshot.data, 'base64'));
+  // Ghosts on Dev C's fake scene: hidden before 5 s, seen 5-11.9 s, then a 15 s fade with a last-seen label.
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&t=8` });
+  await waitFor('!!window.__omni?.clockObj && window.__omni.points > 0');
+  await evaluate('__omni.clockObj.pause(); __omni.clockObj.seek(8)');
+  await waitFor('__omni.clock >= 8 && !!__omni.ghost');
+  const seen = await evaluate('({...__omni.ghost, frames: __omni.ghostFrames, errors: __omni.errors})');
+  assert.equal(seen.frames, 70);
+  assert.ok(seen.visible && seen.seen && seen.alpha === 1 && seen.count > 0, JSON.stringify(seen));
+  assert.deepEqual(seen.errors, []);
+  await evaluate("__omni.clockObj.seek(9); document.getElementById('hud').classList.add('hidden')");
+  await new Promise((ok) => setTimeout(ok, 400));
+  const ghostShot = await command('Page.captureScreenshot', { format: 'png' });
+  await writeFile(resolve(output, 'ghost-seen.png'), Buffer.from(ghostShot.data, 'base64'));
+  await evaluate("document.getElementById('hud').classList.remove('hidden'); __omni.clockObj.seek(19)");
+  await waitFor('__omni.clock >= 19');
+  const fading = await evaluate('__omni.ghost');
+  await evaluate("document.getElementById('hud').classList.add('hidden')");
+  await new Promise((ok) => setTimeout(ok, 300));
+  const fadeShot = await command('Page.captureScreenshot', { format: 'png' });
+  await writeFile(resolve(output, 'ghost-fading.png'), Buffer.from(fadeShot.data, 'base64'));
+  await evaluate("document.getElementById('hud').classList.remove('hidden')");
+  assert.ok(fading.visible && !fading.seen && fading.alpha > 0 && fading.alpha < 1 && fading.lastSeen === 7, JSON.stringify(fading));
+  await evaluate('__omni.clockObj.seek(2)');
+  await waitFor('__omni.clock < 3');
+  assert.equal(await evaluate('__omni.ghost'), null);
+  assert.equal(await evaluate("__omni.sceneRoot.getObjectByName('ghosts').visible"), false);
   await evaluate("localStorage.setItem('omnisight.alignment.v1', JSON.stringify({x: 0.1, y: -0.2, z: 0.3, yaw: 1}))");
   await command('Page.navigate', { url: `${base}?mode=ar&scene=box` });
   await waitFor("!!window.__omni?.alignment && document.getElementById('btn-enter-ar').textContent === 'AR unavailable'");
@@ -155,7 +181,7 @@ try {
     budgets.push(counts);
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ commander, ar, alignment, budgets, output }, null, 2));
+  console.log(JSON.stringify({ commander, ghost: { seen, fading }, ar, alignment, budgets, output }, null, 2));
   await send('Browser.close');
 } finally {
   ws?.close();

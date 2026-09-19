@@ -10,6 +10,7 @@ import { setupCommander } from './modes/commander.js';
 import { setupAR } from './modes/ar.js';
 import { setupBenchmark } from './benchmark.js';
 import { setupAlignment } from './alignment.js';
+import { Ghosts } from './ghosts.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -66,6 +67,14 @@ async function boot() {
     sceneRoot.add(alignmentCloud.object);
   }
 
+  // --- person ghosts (drawn through walls; hold + fade handled inside)
+  let ghosts = null;
+  if (data.people && data.people.totalPoints > 0) {
+    ghosts = new Ghosts(data.people, { maxPx: Math.min(32, maxPointSize(renderer)), sizeScale: params.psize });
+    sceneRoot.add(ghosts.group);
+  }
+  omni.ghostFrames = data.people ? data.people.entries.length : 0;
+
   // --- clock + mode + hud
   const clock = new ReplayClock({ duration: data.duration, t: params.t, speed: params.speed });
   omni.clockObj = clock;
@@ -99,6 +108,8 @@ async function boot() {
     staticCloud.setDrawCount(n);
     omni.clock = t;
     omni.points = staticCloud.drawCount + (alignmentCloud && alignmentCloud.visible ? alignmentCloud.count : 0);
+    omni.ghost = ghosts ? ghosts.update(t) : null;
+    if (omni.ghost && omni.ghost.visible) omni.points += omni.ghost.count;
     mode.update(time, frame);
     benchmark.update(time, frame);
     hud.update(time);

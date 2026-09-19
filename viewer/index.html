@@ -33,6 +33,8 @@
       .legend-bar { height: 10px; border-radius: 5px; margin: 4px 0 2px;
         background: linear-gradient(90deg, #d9b48c 0%, #d9b48c 16%, #8c9eb8 100%); }
       .legend-labels { display: flex; justify-content: space-between; opacity: 0.8; }
+      .legend-ghost { margin-top: 6px; display: flex; align-items: center; gap: 6px; opacity: 0.9; }
+      .legend-ghost .swatch { width: 12px; height: 12px; border-radius: 50%; background: #ff5c1f; box-shadow: 0 0 6px #ff5c1f; flex: none; }
       #controls { left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       #ro-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
       #caption { left: 12px; top: calc(env(safe-area-inset-top, 0px) + 10px); font-size: 12px; opacity: 0.85; max-width: 60vw; }
@@ -110,6 +112,7 @@
         <div>Data age</div>
         <div class="legend-bar"></div>
         <div class="legend-labels"><span>now</span><span>5 s</span><span>30 s+</span></div>
+        <div class="legend-ghost"><span class="swatch"></span>person, fades 15 s after last seen</div>
       </div>
       <div id="controls" class="panel">
         <button id="btn-play">Pause</button>

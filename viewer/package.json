@@ -14,7 +14,8 @@
     "stress": "node scripts/make-scene.mjs --out public/scenes/stress --points 800000 --duration 60 --person 5:12",
     "reverse": "adb reverse tcp:5173 tcp:5173",
     "qr": "node scripts/make-qr.mjs",
-    "phone": "node scripts/phone-omni.mjs"
+    "phone": "node scripts/phone-omni.mjs",
+    "load": "node scripts/load-scene.mjs"
   },
   "dependencies": {
     "three": "0.186.0"

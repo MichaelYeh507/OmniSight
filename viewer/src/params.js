@@ -12,7 +12,7 @@ const num = (key, fallback) => {
 
 export const params = Object.freeze({
   mode: q.get('mode') === 'ar' ? 'ar' : 'commander',
-  scene: (q.get('scene') || 'fake').replace(/[^a-z0-9_]/gi, ''),
+  scene: (q.get('scene') || 'box').replace(/[^a-z0-9_]/gi, ''),
   t: num('t', 0),
   speed: num('speed', 1),
   budget: num('budget', 0), // 0 = unlimited; caps the draw range for fps tests

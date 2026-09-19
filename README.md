@@ -44,10 +44,14 @@ python -m pipeline.run data/raw/<take> --out viewer/public/scenes/<scene> --voxe
 python -m people.run data/raw/<take> --out people_out/<take> --stride 2
 
 # Dev B: viewer
-cd viewer && npm install && npm run dev     # http://127.0.0.1:5173/OmniSight/?mode=commander&scene=fake
+cd viewer && npm install && npm run dev     # http://127.0.0.1:5173/OmniSight/?mode=commander&scene=box
+npm test                                    # format round trips + validator self-test
+npm run stress                              # 800k-point stress scene (gitignored) for the fps budget
 npm run reverse                             # adb reverse tcp:5173 tcp:5173, then on the Samsung:
-                                            # http://localhost:5173/OmniSight/?mode=ar&scene=fake
+                                            # http://localhost:5173/OmniSight/?mode=ar&scene=box
 ```
+
+Scenes: `box` is a small generated room committed for smoke tests (`node viewer/scripts/make-scene.mjs --out viewer/public/scenes/box --points 20000`); `fake` is C's Python-generated room; real scenes come from A.
 
 Viewer URL parameters: `mode=ar|commander`, `scene=<folder name>`, `t=<seconds>`, `speed=<factor>`, `budget=<max points>`, `ax/ay/az/ayaw` (alignment override).
 

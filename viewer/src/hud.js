@@ -17,6 +17,7 @@ export function setupHud({ clock, manifest, onTopDown }) {
     scene: $('ro-scene'),
     topdown: $('btn-topdown'),
     caption: $('caption'),
+    xr: $('ro-xr'),
   };
 
   // XR: a tap on the overlay must not also count as an XR "select" on the scene
@@ -68,6 +69,10 @@ export function setupHud({ clock, manifest, onTopDown }) {
     if (!scrubbing) els.scrub.value = String(clock.time);
     els.fps.textContent = String(omni.fps);
     els.points.textContent = omni.points.toLocaleString();
+    if (omni.mode === 'ar') {
+      const size = omni.xrFramebuffer;
+      els.xr.textContent = `${size ? `${size.width}×${size.height}` : 'XR pending'} · scale ${omni.fbscale} · cap ${omni.budget || 'all'}`;
+    }
   };
   clock.onChange(paint);
   paint();

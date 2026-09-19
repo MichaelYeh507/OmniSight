@@ -7,6 +7,9 @@ export const omni = (window.__omni = {
   fps: 0,
   resets: 0,
   xrFramebuffer: null,
+  xrPresenting: false,
+  tracking: false,
+  benchmark: null,
   errors: [],
 });
 
@@ -18,6 +21,9 @@ export function showError(err) {
     el.textContent = msg;
     el.hidden = false;
   }
+  const overlay = document.getElementById('xr-error');
+  if (overlay) { overlay.textContent = msg; overlay.hidden = false; }
+  if (!omni.xrPresenting) document.getElementById('pre')?.classList.remove('hidden');
   console.error('[omni]', err);
 }
 
@@ -26,10 +32,11 @@ window.addEventListener('unhandledrejection', (e) => showError(e.reason));
 
 // Rolling fps, updated twice a second.
 let frames = 0;
-let last = 0;
+let last = null;
+export function resetFps() { frames = 0; last = null; omni.fps = 0; }
 export function tickFps(now) {
+  if (last === null) { last = now; return; }
   frames += 1;
-  if (last === 0) last = now;
   if (now - last >= 500) {
     omni.fps = Math.round((frames * 1000) / (now - last));
     frames = 0;

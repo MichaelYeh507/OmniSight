@@ -12,6 +12,8 @@
       button, select { font: inherit; color: inherit; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.25);
         border-radius: 6px; padding: 6px 10px; min-height: 36px; touch-action: manipulation; }
       button.active { background: rgba(255, 176, 64, 0.35); border-color: rgba(255, 176, 64, 0.8); }
+      button:disabled { opacity: 0.5; }
+      [hidden] { display: none !important; }
       input[type="range"] { flex: 1; min-width: 80px; accent-color: #ffb040; }
 
       /* Pre-session UI. Lives OUTSIDE #hud because the XR session hides the overlay root on exit. */
@@ -22,7 +24,7 @@
       #pre.hidden { display: none; }
 
       /* WebXR dom-overlay root. Only its children take pointer events. */
-      #hud { position: fixed; inset: 0; pointer-events: none; }
+      #hud { position: fixed; inset: 0; pointer-events: none; background: transparent; }
       #hud > * { pointer-events: auto; }
       .panel { position: absolute; background: rgba(0, 0, 0, 0.55); border-radius: 8px; padding: 6px 10px; }
       #readout { top: calc(env(safe-area-inset-top, 0px) + 10px); right: 12px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -37,6 +39,18 @@
       body[data-mode="ar"] .commander-only { display: none; }
       body[data-mode="commander"] .ar-only { display: none; }
       #hud.hidden { display: none; }
+      #ar-status { max-width: 480px; }
+      #ar-session { left: 12px; top: calc(env(safe-area-inset-top, 0px) + 88px); max-width: min(420px, calc(100vw - 44px)); font-size: 12px;
+        max-height: calc(100dvh - 260px); overflow-y: auto; }
+      #ar-session button { margin: 4px 4px 4px 0; }
+      #xr-error { background: #a11; padding: 6px; border-radius: 6px; }
+      body[data-mode="ar"] #caption { max-width: 45vw; }
+      body[data-mode="ar"] #readout { font-size: 12px; max-width: 46vw; }
+      .alignment-row { display: grid; grid-template-columns: 28px 36px minmax(60px, 1fr) 36px 62px; gap: 4px; align-items: center; }
+      .alignment-row input { width: 100%; min-width: 0; }
+      .alignment-row output { text-align: right; font-variant-numeric: tabular-nums; }
+      #ar-session .alignment-row button { padding: 4px; margin: 2px 0; min-height: 40px; }
+      #alignment-status, #alignment-missing { margin-top: 6px; }
     </style>
   </head>
   <body data-mode="commander">
@@ -46,14 +60,51 @@
       <div class="card">
         <strong>OmniSight</strong> <span id="status">loading scene...</span>
         <div id="error-banner" hidden></div>
+        <div class="ar-only">
+          <p id="ar-status" role="status">Checking AR support…</p>
+          <button id="btn-enter-ar" disabled>Checking AR…</button>
+        </div>
       </div>
     </div>
 
     <div id="hud" class="hidden">
-      <div id="caption" class="panel commander-only">Replayed from a recorded walkthrough.</div>
+      <div id="caption" class="panel">Replayed from a recorded walkthrough.</div>
       <div id="readout" class="panel">
         <div id="ro-scene" class="dim"></div>
+        <div id="ro-xr" class="ar-only dim"></div>
         <div><span id="ro-fps">0</span> fps <span class="dim">·</span> <span id="ro-points">0</span> pts</div>
+      </div>
+      <div id="ar-session" class="panel ar-only">
+        <div id="ro-tracking" role="status"></div>
+        <div id="ro-alignment-mode">X-ray mode</div>
+        <button id="btn-exit-ar" disabled>Exit AR</button>
+        <button id="btn-align" aria-pressed="false" aria-expanded="false" aria-controls="alignment-controls">Align wall</button>
+        <button id="btn-benchmark" disabled>Measure 10 s</button>
+        <div id="benchmark-status" role="status"></div>
+        <div id="xr-error" role="alert" hidden></div>
+        <div id="alignment-controls" hidden>
+          <div>X right · Y up · Z toward you. Yaw turns about Y.</div>
+          <div class="alignment-row">
+            <label for="align-x">X</label><button id="align-x-minus" aria-label="X minus 1 cm">−</button>
+            <input id="align-x" type="range" /><button id="align-x-plus" aria-label="X plus 1 cm">+</button><output id="align-x-value" for="align-x"></output>
+          </div>
+          <div class="alignment-row">
+            <label for="align-y">Y</label><button id="align-y-minus" aria-label="Y minus 1 cm">−</button>
+            <input id="align-y" type="range" /><button id="align-y-plus" aria-label="Y plus 1 cm">+</button><output id="align-y-value" for="align-y"></output>
+          </div>
+          <div class="alignment-row">
+            <label for="align-z">Z</label><button id="align-z-minus" aria-label="Z minus 1 cm">−</button>
+            <input id="align-z" type="range" /><button id="align-z-plus" aria-label="Z plus 1 cm">+</button><output id="align-z-value" for="align-z"></output>
+          </div>
+          <div class="alignment-row">
+            <label for="align-yaw">Yaw</label><button id="align-yaw-minus" aria-label="Yaw minus 0.5 degrees">−</button>
+            <input id="align-yaw" type="range" /><button id="align-yaw-plus" aria-label="Yaw plus 0.5 degrees">+</button><output id="align-yaw-value" for="align-yaw"></output>
+          </div>
+          <button id="btn-save-alignment">Save offsets</button>
+          <button id="btn-reset-alignment">Reset offsets</button>
+          <div id="alignment-status" role="status"></div>
+          <div id="alignment-missing" hidden>No alignment cloud in this scene. Nudges still move the map; real-wall alignment needs alignment.bin.</div>
+        </div>
       </div>
       <div id="legend" class="panel">
         <div>Data age</div>

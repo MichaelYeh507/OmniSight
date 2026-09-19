@@ -1,12 +1,13 @@
 // Single place that reads the URL. Everything else imports `params`.
 //   ?mode=ar|commander  &scene=<folder>  &t=<s>  &speed=<x>  &budget=<max points>
 //   &fbscale=<xr framebuffer scale>  &round=1  &portal=0  &renderer=points|spark  &psize=<size multiplier>
+//   &bench=1 holds the complete scene, paused, for point-budget measurements
 //   &ax=&ay=&az=&ayaw=  (alignment override in meters / degrees)
 const q = new URLSearchParams(location.search);
 
 const num = (key, fallback) => {
   const v = q.get(key);
-  if (v === null || v === '' || Number.isNaN(Number(v))) return fallback;
+  if (v === null || v.trim() === '' || !Number.isFinite(Number(v))) return fallback;
   return Number(v);
 };
 
@@ -15,8 +16,9 @@ export const params = Object.freeze({
   scene: (q.get('scene') || 'box').replace(/[^a-z0-9_]/gi, ''),
   t: num('t', 0),
   speed: num('speed', 1),
-  budget: num('budget', 0), // 0 = unlimited; caps the draw range for fps tests
-  fbscale: num('fbscale', 1), // WebXR framebuffer scale factor
+  budget: Math.max(0, Math.floor(num('budget', 0))), // 0 = unlimited; caps the draw range for fps tests
+  bench: q.get('bench') === '1', // hold the complete scene for reproducible fps tests
+  fbscale: Math.min(2, Math.max(0.1, num('fbscale', 1))), // WebXR framebuffer scale factor
   round: q.get('round') === '1',
   portal: q.get('portal') !== '0',
   renderer: q.get('renderer') === 'spark' ? 'spark' : 'points',

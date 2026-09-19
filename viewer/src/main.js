@@ -1,18 +1,23 @@
 import * as THREE from 'three';
 import { params } from './params.js';
-import { omni, showError, tickFps } from './debug.js';
+import { omni, showError, tickFps, resetFps } from './debug.js';
 import { loadScene } from './scene-loader.js';
 import { drawCountAt } from './scene-data.js';
 import { PointCloud, maxPointSize } from './points.js';
 import { ReplayClock } from './clock.js';
 import { setupHud } from './hud.js';
 import { setupCommander } from './modes/commander.js';
+import { setupAR } from './modes/ar.js';
+import { setupBenchmark } from './benchmark.js';
+import { setupAlignment } from './alignment.js';
 
 const $ = (id) => document.getElementById(id);
 
 async function boot() {
   omni.mode = params.mode;
   omni.scene = params.scene;
+  omni.budget = params.budget;
+  omni.fbscale = params.fbscale;
   document.body.dataset.mode = params.mode;
   const status = $('status');
 
@@ -35,11 +40,14 @@ async function boot() {
   scene.add(sceneRoot);
   omni.sceneRoot = sceneRoot;
 
-  window.addEventListener('resize', () => {
+  const resize = () => {
+    if (renderer.xr.isPresenting) return;
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+  };
+  window.addEventListener('resize', resize);
+  renderer.xr.addEventListener('sessionend', resize);
 
   // --- data
   const data = await loadScene((done, total, label) => {
@@ -62,17 +70,27 @@ async function boot() {
   const clock = new ReplayClock({ duration: data.duration, t: params.t, speed: params.speed });
   omni.clockObj = clock;
 
+  if (params.bench) { clock.seek(data.duration); clock.pause(); }
+  const mode = params.mode === 'ar'
+    ? await setupAR({ renderer, scene, camera, alignmentCloud, clock, params, omni,
+      onError: showError, resetFps, elements: {
+        enter: $('btn-enter-ar'), exit: $('btn-exit-ar'), pre: $('pre'), hud: $('hud'),
+        status: $('ar-status'), tracking: $('ro-tracking'), benchmark: $('btn-benchmark'),
+        error: $('error-banner'), xrError: $('xr-error'),
+      } })
+    : setupCommander({ renderer, scene, camera, sceneRoot, data, alignmentCloud });
   if (params.mode === 'ar') {
-    console.warn('[omni] AR mode is not wired yet (next commit); running commander mode');
-    document.body.dataset.mode = 'commander';
+    setupAlignment({ sceneRoot, alignmentCloud, overrides: params.align, omni });
   }
-  const mode = setupCommander({ renderer, scene, camera, sceneRoot, data, alignmentCloud });
+  const benchmark = setupBenchmark({ clock, omni, params, button: $('btn-benchmark'), status: $('benchmark-status') });
   const hud = setupHud({ clock, manifest: data.manifest, onTopDown: mode.toggleTopDown });
-  $('hud').classList.remove('hidden');
-  $('pre').classList.add('hidden');
+  if (params.mode !== 'ar') {
+    $('hud').classList.remove('hidden');
+    $('pre').classList.add('hidden');
+  }
 
   // --- render loop
-  renderer.setAnimationLoop((time) => {
+  renderer.setAnimationLoop((time, frame) => {
     tickFps(time);
     const t = clock.update(time);
     staticCloud.setClock(t);
@@ -81,7 +99,8 @@ async function boot() {
     staticCloud.setDrawCount(n);
     omni.clock = t;
     omni.points = staticCloud.drawCount + (alignmentCloud && alignmentCloud.visible ? alignmentCloud.count : 0);
-    mode.update(time);
+    mode.update(time, frame);
+    benchmark.update(time, frame);
     hud.update(time);
     renderer.render(scene, camera);
   });

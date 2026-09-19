@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0f14" />
+    <title>OmniSight viewer</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f14; color: #e8edf2;
+        font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      #app canvas { display: block; }
+      /* Pre-session UI. Lives OUTSIDE #hud because the XR session hides the overlay root on exit. */
+      #pre { position: fixed; top: 0; left: 0; right: 0; padding: env(safe-area-inset-top, 0) 12px 0; pointer-events: none; }
+      .card { pointer-events: auto; display: inline-block; margin: 10px 0; padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.6); border-radius: 8px; max-width: calc(100vw - 24px); }
+      #error-banner { margin-top: 6px; padding: 6px 8px; background: #a11; color: #fff; border-radius: 6px; white-space: pre-wrap; }
+      /* WebXR dom-overlay root. Only its children take pointer events. */
+      #hud { position: fixed; inset: 0; pointer-events: none; }
+      #hud > * { pointer-events: auto; }
+    </style>
+  </head>
+  <body data-mode="commander">
+    <div id="app"></div>
+    <div id="pre">
+      <div class="card">
+        <strong>OmniSight</strong> <span id="status">loading scene...</span>
+        <div id="error-banner" hidden></div>
+      </div>
+    </div>
+    <div id="hud"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

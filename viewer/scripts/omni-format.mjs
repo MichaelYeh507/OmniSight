@@ -64,7 +64,7 @@ export function encodePeople(frames) {
       frame: f.frame ?? i,
       offset,
       count: n,
-      centroid: n ? c.map((v) => round(v / n, 4)) : [0, 0, 0],
+      centroid: n ? c.map((v) => v / n) : [0, 0, 0], // exact mean: Dev C's reader checks it to 1e-5
     });
     offset += BYTES_PER_GHOST_POINT * n;
   });

@@ -8,6 +8,7 @@
 // Options: --points N (static point cap, default 200000)   --duration S (reveal time, default 20)
 //          --person a:b (seconds the person is visible, default 5:12)   --person-points N (2000)
 //          --person-fps N (10)   --wall-z Z (-1.8)   --floor-y Y (-1.3)   --seed N   --name <scene>
+//          --sources N (1): extra responders, each a later walkthrough from the same jig with its own source_id
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { encodeChunk, encodePeople, writeScene } from './omni-format.mjs';
@@ -94,6 +95,7 @@ export function makeScene(opts = {}) {
   const o = { ...DEFAULTS, ...opts };
   const rand = mulberry32(o.seed);
   const { wallZ, floorY, duration } = o;
+  const sources = Math.max(1, Math.floor(o.sources || 1));
   const zBack = wallZ - ROOM_D;
   const yTop = floorY + ROOM_H;
 
@@ -153,7 +155,7 @@ export function makeScene(opts = {}) {
         C[4 * j] = st.rgb[3 * idx];
         C[4 * j + 1] = st.rgb[3 * idx + 1];
         C[4 * j + 2] = st.rgb[3 * idx + 2];
-        C[4 * j + 3] = 0; // source_id
+        C[4 * j + 3] = sources > 1 && P[3 * j] > 0.5 && P[3 * j + 2] < wallZ - 1 ? 1 : 0; // source_id: the back-right corner is what responder 2 sees
       }
       const file = `chunks/${String(chunks.length).padStart(4, '0')}.bin`;
       chunks.push({ file, bytes: encodeChunk({ tStart, tEnd, positions: P, normals: N, radius: R, tSeen: T, rgbs: C }) });
@@ -237,7 +239,8 @@ export function makeScene(opts = {}) {
     [duration, -1.2, wallZ - 2.3],
   ];
   const trajectory = [];
-  for (let i = 0; i / 10 <= duration + 1e-9; i++) {
+  const walk = (way, source) => {
+    for (let i = Math.ceil(way[0][0] * 10 - 1e-9); i / 10 <= duration + 1e-9; i++) {
     const t = i / 10;
     let seg = 0;
     while (seg < way.length - 2 && t > way[seg + 1][0]) seg++;
@@ -254,8 +257,24 @@ export function makeScene(opts = {}) {
       const yaw = Math.atan2(-dx, -dz);
       q = [0, round(Math.sin(yaw / 2), 6), 0, round(Math.cos(yaw / 2), 6)];
     }
-    trajectory.push({ t: round(t, 3), source: 0, position: [round(x, 4), 0, round(z, 4)], quaternion: q });
+    trajectory.push({ t: round(t, 3), source, position: [round(x, 4), 0, round(z, 4)], quaternion: q });
+    }
+  };
+  walk(way, 0);
+  for (let k = 1; k < sources; k++) {
+    // a later walkthrough from the same jig: same door, then deeper along the right side of the room
+    const d = Math.min(1.5 * k, duration / 4);
+    const leg2 = (duration - d - hold) / 4;
+    walk([
+      [d, 0, 0],
+      [d + hold, 0, 0],
+      [d + hold + leg2, 2.6, wallZ + 0.3],
+      [d + hold + 2 * leg2, 2.6, wallZ - 0.75],
+      [d + hold + 3 * leg2, 1.4, wallZ - 1.6],
+      [duration, 0.6, wallZ - 3.2],
+    ], k);
   }
+  trajectory.sort((a, b) => a.t - b.t || a.source - b.source); // the contract wants one list sorted by t
 
   const lastChunkEnd = manifestChunks.length ? manifestChunks[manifestChunks.length - 1].t_end : 0;
   const manifest = {
@@ -266,7 +285,7 @@ export function makeScene(opts = {}) {
     alignment_chunk: 'alignment.bin',
     wall_z: wallZ,
     floor_y: floorY,
-    sources: [{ id: 0, label: 'Fake responder', device: 'viewer/scripts/make-scene.mjs' }],
+    sources: Array.from({ length: sources }, (_, id) => ({ id, label: id ? `Fake responder ${id + 1}` : 'Fake responder', device: 'viewer/scripts/make-scene.mjs' })),
     processing_seconds: round((performance.now() - t0) / 1000, 3),
   };
   const stats = { staticPoints: n, alignmentPoints: an, ghostFrames: frames.length, spacing: round(spacing, 4) };
@@ -284,6 +303,7 @@ function parseArgs(argv) {
     '--wall-z': 'wallZ',
     '--floor-y': 'floorY',
     '--seed': 'seed',
+    '--sources': 'sources',
     '--name': 'name',
   };
   const o = {};

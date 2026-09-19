@@ -128,6 +128,28 @@ try {
   const responderShot = await command('Page.captureScreenshot', { format: 'png' });
   await writeFile(resolve(output, 'responder.png'), Buffer.from(responderShot.data, 'base64'));
   await evaluate("document.getElementById('hud').classList.remove('hidden')");
+  assert.equal(await evaluate("document.getElementById('legend-responders').hidden"), true); // one walkthrough: no responder legend
+  // Two recorded walkthroughs replayed together (`two`, from make-scene --sources 2): one frustum + trail per source id, labelled from manifest.sources.
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=two&t=18&cutaway=0` });
+  await waitFor('!!window.__omni?.clockObj && window.__omni.points > 0');
+  await evaluate('__omni.clockObj.pause(); __omni.clockObj.seek(18)');
+  await waitFor('__omni.clock >= 18 && Array.isArray(__omni.responders) && __omni.responders.length === 2');
+  const two = await evaluate(`({responders: __omni.responders, sources: __omni.data.manifest.sources.map((s) => s.id),
+    groups: __omni.sceneRoot.getObjectByName('responders').children.map((g) => [g.name, g.visible]),
+    legendHidden: document.getElementById('legend-responders').hidden,
+    legendRows: [...document.querySelectorAll('#legend-responders .legend-responder')].map((r) => r.textContent), errors: __omni.errors})`);
+  assert.deepEqual(two.sources, [0, 1]);
+  assert.deepEqual(two.responders.map((r) => r.source), [0, 1]);
+  assert.ok(Math.hypot(...two.responders[0].position.map((v, k) => v - two.responders[1].position[k])) > 0.5, `responders apart at 18 s (different final legs): ${JSON.stringify(two.responders)}`);
+  assert.deepEqual(two.groups, [['responder', true], ['responder-1', true]]);
+  assert.equal(two.legendHidden, false);
+  assert.deepEqual(two.legendRows, ['Fake responder', 'Fake responder 2']);
+  assert.deepEqual(two.errors, []);
+  await evaluate("document.getElementById('hud').classList.add('hidden')");
+  await new Promise((ok) => setTimeout(ok, 300));
+  const twoShot = await command('Page.captureScreenshot', { format: 'png' });
+  await writeFile(resolve(output, 'responders-two.png'), Buffer.from(twoShot.data, 'base64'));
+  await evaluate("document.getElementById('hud').classList.remove('hidden')");
   // Portal depth trick, forced on in commander mode: the hole follows the camera's forward ray onto the wall plane.
   await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&portaldebug=1&cutaway=0` });
   await waitFor('!!window.__omni?.portal && __omni.portal.enabled');
@@ -252,7 +274,7 @@ try {
     budgets.push(counts);
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ base, commander, ghost: { seen, fading }, responder, portal, looks, ar, alignment, budgets, output }, null, 2));
+  console.log(JSON.stringify({ base, commander, ghost: { seen, fading }, responder, two, portal, looks, ar, alignment, budgets, output }, null, 2));
   await send('Browser.close');
 } finally {
   ws?.close();

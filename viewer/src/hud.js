@@ -20,6 +20,7 @@ export function setupHud({ clock, manifest, onTopDown, onCutaway, cutaway = fals
     xr: $('ro-xr'),
     look: $('sel-look'),
     cutaway: $('btn-cutaway'),
+    responders: $('legend-responders'),
   };
 
   // XR: a tap on the overlay must not also count as an XR "select" on the scene
@@ -28,9 +29,12 @@ export function setupHud({ clock, manifest, onTopDown, onCutaway, cutaway = fals
   els.scene.textContent = manifest.scene;
   if (els.caption) {
     const secs = Number(manifest.processing_seconds);
+    // honesty captions from the design doc; the two-walkthrough wording applies when manifest.sources has 2+ entries
+    const replay = Array.isArray(manifest.sources) && manifest.sources.length > 1
+      ? 'Two recorded walkthroughs replayed together.' : 'Replayed from a recorded walkthrough.';
     els.caption.textContent = Number.isFinite(secs)
-      ? `Replayed from a recorded walkthrough. Processed in ${secs < 10 ? secs.toFixed(1) : Math.round(secs)} s.`
-      : 'Replayed from a recorded walkthrough.';
+      ? `${replay} Processed in ${secs < 10 ? secs.toFixed(1) : Math.round(secs)} s.`
+      : replay;
   }
 
   els.scrub.max = String(clock.duration);
@@ -97,6 +101,21 @@ export function setupHud({ clock, manifest, onTopDown, onCutaway, cutaway = fals
   let lastPaint = 0;
   return {
     els,
+    /** Legend rows for the responders, shown only when two or more walkthroughs are replayed together. */
+    setResponders(list) {
+      if (!els.responders) return;
+      els.responders.replaceChildren();
+      els.responders.hidden = list.length < 2;
+      for (const r of list) {
+        const row = document.createElement('div');
+        row.className = 'legend-responder';
+        const swatch = document.createElement('span');
+        swatch.className = 'swatch';
+        swatch.style.background = `#${r.color.toString(16).padStart(6, '0')}`;
+        row.append(swatch, document.createTextNode(r.label));
+        els.responders.append(row);
+      }
+    },
     /** Call once per frame; repaints at ~8 Hz. */
     update(nowMs) {
       if (nowMs - lastPaint < 125) return;

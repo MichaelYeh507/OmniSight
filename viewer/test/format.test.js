@@ -144,6 +144,27 @@ test('generated box scene passes the validator', () => {
   fs.rmSync(path.dirname(dir), { recursive: true, force: true });
 });
 
+test('generated two-source scene: second responder with its own source id, one trajectory sorted by t, validator clean', () => {
+  const dir = tmpDir();
+  const scene = makeScene({ name: path.basename(dir), points: 3000, duration: 8, person: '1:2', personPoints: 50, personFps: 5, sources: 2 });
+  writeScene(dir, scene);
+  const r = validateScene(dir);
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(scene.manifest.sources.map((s) => s.id), [0, 1]);
+  const bySource = new Map();
+  for (const p of scene.trajectory) bySource.set(p.source, (bySource.get(p.source) || 0) + 1);
+  assert.deepEqual([...bySource.keys()].sort(), [0, 1]);
+  assert.ok(bySource.get(1) > 10 && bySource.get(1) < bySource.get(0), `source 1 starts later: ${bySource.get(1)} of ${bySource.get(0)}`);
+  for (let i = 1; i < scene.trajectory.length; i++) assert.ok(scene.trajectory[i].t >= scene.trajectory[i - 1].t, 'sorted by t');
+  assert.deepEqual(scene.trajectory[0], { t: 0, source: 0, position: [0, 0, 0], quaternion: [0, 0, 0, 1] });
+  const firstOfSecond = scene.trajectory.find((p) => p.source === 1);
+  assert.deepEqual([firstOfSecond.position, firstOfSecond.quaternion], [[0, 0, 0], [0, 0, 0, 1]]); // starts at the jig too
+  const ids = new Set();
+  for (const c of scene.chunks) { const p = parseChunk(c.bytes.buffer.slice(c.bytes.byteOffset, c.bytes.byteOffset + c.bytes.byteLength), c.file); for (let i = 0; i < p.n; i++) ids.add(p.rgbs[4 * i + 3]); }
+  assert.deepEqual([...ids].sort(), [0, 1]);
+  fs.rmSync(path.dirname(dir), { recursive: true, force: true });
+});
+
 test('validator catches a corrupted chunk and a missing people.bin', () => {
   const dir = tmpDir();
   writeScene(dir, makeScene({ name: path.basename(dir), points: 1000, duration: 2, person: '0.5:1', personPoints: 20, personFps: 4 }));

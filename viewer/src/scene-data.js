@@ -101,6 +101,17 @@ export function ghostStateAt(entries, t) {
  * Linear position, normalized-lerp quaternion (poses are 0.1 s apart, so nlerp is fine).
  * Before the first pose the first pose is returned; after the last, the last.
  */
+/** Group a merged trajectory by source id (docs/CONTRACT.md `source`), time order kept inside each group, lowest id first. */
+export function splitTrajectory(trajectory) {
+  const groups = new Map();
+  for (const p of trajectory || []) {
+    const id = Number.isInteger(p.source) ? p.source : 0;
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(p);
+  }
+  return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([source, entries]) => ({ source, entries }));
+}
+
 export function poseAt(trajectory, t) {
   if (!trajectory || !trajectory.length) return null;
   const i = poseIndexAt(trajectory, t);

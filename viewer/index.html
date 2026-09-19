@@ -38,6 +38,8 @@
       body[data-look="blueprint"] { background: #f4f6f8; }
       .legend-ghost { margin-top: 6px; display: flex; align-items: center; gap: 6px; opacity: 0.9; }
       .legend-ghost .swatch { width: 12px; height: 12px; border-radius: 50%; background: #ff5c1f; box-shadow: 0 0 6px #ff5c1f; flex: none; }
+      .legend-responder { margin-top: 4px; display: flex; align-items: center; gap: 6px; opacity: 0.9; }
+      .legend-responder .swatch { width: 12px; height: 4px; border-radius: 2px; flex: none; }
       #controls { left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       #ro-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
       #caption { left: 12px; top: calc(env(safe-area-inset-top, 0px) + 10px); font-size: 12px; opacity: 0.85; max-width: 60vw; }
@@ -116,6 +118,7 @@
         <div class="legend-bar"></div>
         <div class="legend-labels"><span>now</span><span>5 s</span><span>30 s+</span></div>
         <div class="legend-ghost"><span class="swatch"></span>person, fades 15 s after last seen</div>
+        <div id="legend-responders" hidden></div>
       </div>
       <div id="controls" class="panel">
         <button id="btn-play">Pause</button>

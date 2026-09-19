@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseChunk } from '../src/format.js';
-import { mergeChunks, drawCountAt, poseIndexAt, computeBounds, ghostStateAt, GHOST_SEEN_GAP, GHOST_FADE, poseAt, intersectWallPlane, clampWallHit } from '../src/scene-data.js';
+import { mergeChunks, drawCountAt, poseIndexAt, computeBounds, ghostStateAt, GHOST_SEEN_GAP, GHOST_FADE, poseAt, intersectWallPlane, clampWallHit, splitTrajectory } from '../src/scene-data.js';
 import { makeScene } from '../scripts/make-scene.mjs';
 
 test('mergeChunks concatenates in order and drawCountAt returns a growing prefix', () => {
@@ -96,6 +96,22 @@ test('poseAt interpolates position and orientation between trajectory samples', 
   const end = poseAt(tr, 99);
   assert.equal(end.index, 2);
   assert.deepEqual(end.position, [2, 0, -6]);
+});
+
+test('splitTrajectory groups a merged trajectory by source, lowest id first, time order kept', () => {
+  const q = [0, 0, 0, 1];
+  const merged = [
+    { t: 0, source: 1, position: [1, 0, 0], quaternion: q },
+    { t: 0, source: 0, position: [0, 0, 0], quaternion: q },
+    { t: 1, source: 1, position: [1, 0, -1], quaternion: q },
+    { t: 2, position: [0, 0, -2], quaternion: q }, // no source field: source 0
+  ];
+  const groups = splitTrajectory(merged);
+  assert.deepEqual(groups.map((g) => g.source), [0, 1]);
+  assert.deepEqual(groups[0].entries.map((p) => p.t), [0, 2]);
+  assert.deepEqual(groups[1].entries.map((p) => p.position), [[1, 0, 0], [1, 0, -1]]);
+  assert.deepEqual(splitTrajectory([]), []);
+  assert.deepEqual(splitTrajectory(undefined), []);
 });
 
 test('intersectWallPlane finds the gaze hit on the wall and rejects misses', () => {

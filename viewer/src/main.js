@@ -11,7 +11,7 @@ import { setupAR } from './modes/ar.js';
 import { setupBenchmark } from './benchmark.js';
 import { setupAlignment } from './alignment.js';
 import { Ghosts } from './ghosts.js';
-import { Responder } from './responder.js';
+import { Responders } from './responder.js';
 import { Portal } from './portal.js';
 
 const $ = (id) => document.getElementById(id);
@@ -84,10 +84,10 @@ async function boot() {
   omni.ghostFrames = data.people ? data.people.entries.length : 0;
 
   // --- responder frustum + trail, and the portal (AR x-ray mode only, or ?portaldebug=1)
-  let responder = null;
+  let responders = null;
   if (data.trajectory.length) {
-    responder = new Responder(data.trajectory);
-    sceneRoot.add(responder.group);
+    responders = new Responders(data.trajectory, data.manifest.sources || []); // one frustum + trail per source id
+    sceneRoot.add(responders.group);
   }
   let portal = null;
   if (params.portal && data.wallZ !== null && (params.mode === 'ar' || params.portaldebug)) {
@@ -115,6 +115,7 @@ async function boot() {
   const benchmark = setupBenchmark({ clock, omni, params, button: $('btn-benchmark'), status: $('benchmark-status') });
   const hud = setupHud({ clock, manifest: data.manifest, onTopDown: mode.toggleTopDown, onCutaway: mode.setCutaway ? () => (omni.cutaway = mode.setCutaway(!mode.cutaway)) : null, cutaway: !!mode.cutaway });
   omni.cutaway = !!mode.cutaway;
+  hud.setResponders(responders ? responders.legend : []);
   if (params.mode !== 'ar') {
     $('hud').classList.remove('hidden');
     $('pre').classList.add('hidden');
@@ -133,7 +134,8 @@ async function boot() {
     omni.ghost = ghosts ? ghosts.update(t) : null;
     if (omni.ghost && omni.ghost.visible) omni.points += omni.ghost.count;
     omni.cutaway = !!mode.cutaway;
-    omni.responder = responder ? responder.update(t) : null;
+    omni.responders = responders ? responders.update(t) : [];
+    omni.responder = omni.responders[0] || null;
     if (portal) {
       // the portal is for x-ray mode: off while aligning (the wall cloud must be fully visible) and before the XR session
       portal.setEnabled(params.portaldebug || (omni.xrPresenting && !omni.aligning));

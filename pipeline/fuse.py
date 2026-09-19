@@ -94,7 +94,9 @@ def fuse(
     poses = validate_poses(poses)
     if len(poses) != rec.n_frames:
         raise ValueError('pose count must match recording')
-    seen = np.empty(0, dtype=np.int64)
+    # Keep the global voxel index as a hash set. Re-sorting the full history on
+    # every frame makes long recordings quadratic and stalls real 60 s takes.
+    seen: set[int] = set()
     batches = []
     for index, rgb, depth, confidence in iter_frames(rec, stride):
         keep = (confidence == 2) & np.isfinite(depth) & (depth > .3) & (depth < 4.5)
@@ -133,9 +135,9 @@ def fuse(
         normals[np.einsum('ij,ij->i', normals, toward_camera) < 0] *= -1
         keys = voxel_keys(positions, voxel)
         unique_keys, first = np.unique(keys, return_index=True)
-        unseen = ~np.isin(unique_keys, seen, assume_unique=True)
+        unseen = np.fromiter((int(key) not in seen for key in unique_keys), dtype=bool, count=len(unique_keys))
         selected = first[unseen]
-        seen = np.union1d(seen, unique_keys[unseen])
+        seen.update(int(key) for key in unique_keys[unseen])
         if not len(selected):
             continue
         pixels = pixels[selected]

@@ -4,10 +4,10 @@ The AR session may start before record is pressed, so frame 0 may not sit at the
 origin.
 
 1. Take frame 0's position as the new origin.
-2. Project frame 0's forward vector onto the horizontal plane and rotate about Y so
-   it points along -Z.
-3. Apply that one yaw-plus-translation transform to every pose. Never tilt the
-   frame, so gravity stays along Y.
+2. Use frame 0's complete camera orientation as the world basis, so the first
+   trajectory pose is exactly the identity required by the viewer contract.
+3. Apply that one rigid transform to every pose. The captured camera frame defines
+   the replay basis; the AR viewer starts in the same local camera frame.
 
 Output convention (docs/CONTRACT.md, clarification 4): ``trajectory.json`` quaternions
 rotate the three.js camera frame (the camera looks along its own -Z, +Y up) into the
@@ -50,25 +50,19 @@ def camera_poses(poses: Any, convention: str = 'arkit') -> np.ndarray:
 
 
 def world_from_frame0(pose0: Any) -> Any:
-    """Return the 4x4 yaw-plus-translation transform mapping the raw world frame to
-    the normalized world frame, computed from frame 0's raw camera-to-world pose."""
+    """Return the rigid transform mapping raw world coordinates to frame-0 camera
+    coordinates. This makes the first camera-to-world pose the identity."""
     pose = validate_poses(np.asarray(pose0)[None])[0]
-    forward = -pose[:3, 2]
-    if np.hypot(forward[0], forward[2]) < 1e-6:
-        raise ValueError('frame 0 needs a horizontal forward direction; start from a level jig')
-    yaw = np.arctan2(forward[0], -forward[2])
-    c, s = np.cos(yaw), np.sin(yaw)
     transform = np.eye(4)
-    transform[:3, :3] = [[c, 0, s], [0, 1, 0], [-s, 0, c]]
+    transform[:3, :3] = pose[:3, :3].T
     transform[:3, 3] = -transform[:3, :3] @ pose[:3, 3]
     return transform
 
 
 def normalize_poses(poses: Any) -> Any:
     """Apply ``world_from_frame0`` to every pose. Input and output are (F, 4, 4)
-    camera-to-world, in three.js/ARKit camera axes. The first position is zero;
-    pitch and roll are retained to preserve gravity. For a level jig the first
-    pose is the identity. Use ``camera_poses`` first for OpenCV raw poses.
+    camera-to-world, in three.js/ARKit camera axes. The first pose is the identity.
+    Use ``camera_poses`` first for OpenCV raw poses.
     """
     array = validate_poses(poses)
     return world_from_frame0(array[0]) @ array

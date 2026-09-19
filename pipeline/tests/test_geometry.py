@@ -26,17 +26,15 @@ def test_pose_is_applied_once_and_invalid_depth_is_excluded():
     np.testing.assert_array_equal(indices, [0])
 
 
-def test_normalization_preserves_gravity_and_pitch():
+def test_normalization_makes_first_pose_identity():
     poses = np.repeat(np.eye(4)[None], 2, axis=0)
     poses[:, :3, :3] = Rotation.from_euler('yx', [60, 15], degrees=True).as_matrix()
     poses[0, :3, 3] = [3, 2, 4]
     poses[1, :3, 3] = [3, 3, 4]
     normalized = normalize_poses(poses)
     np.testing.assert_allclose(normalized[0, :3, 3], 0, atol=1e-12)
-    np.testing.assert_allclose(normalized[1, :3, 3], [0, 1, 0], atol=1e-12)
-    forward = -normalized[0, :3, 2]
-    assert abs(forward[0]) < 1e-12 and forward[2] < 0
-    assert abs(forward[1]) > .01
+    np.testing.assert_allclose(normalized[1], world_from_frame0(poses[0]) @ poses[1], atol=1e-12)
+    np.testing.assert_allclose(normalized[0], np.eye(4), atol=1e-12)
     np.testing.assert_allclose(world_from_frame0(poses[0]) @ poses, normalized)
 
 
@@ -47,11 +45,10 @@ def test_level_initial_pose_becomes_identity():
     np.testing.assert_allclose(normalize_poses(poses), np.eye(4)[None], atol=1e-12)
 
 
-def test_vertical_start_cannot_define_heading():
+def test_vertical_start_is_a_valid_camera_basis():
     poses = np.eye(4)[None]
     poses[0, :3, :3] = Rotation.from_euler('x', 90, degrees=True).as_matrix()
-    with pytest.raises(ValueError, match='horizontal'):
-        normalize_poses(poses)
+    np.testing.assert_allclose(normalize_poses(poses), np.eye(4)[None], atol=1e-12)
 
 
 def test_bad_intrinsics_fail_before_division():

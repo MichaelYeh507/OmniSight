@@ -120,10 +120,10 @@ The validator script is absent in the current skeleton. A's tests independently
 parse binary layout with Python and JavaScript typed arrays, but they cannot prove
 B's unfinished viewer loads the scene or hits its device frame-rate target.
 
-**Coordinate clarification for kickoff:** yaw-only normalization gives frame 0 a zero
-position and zero horizontal heading, retaining pitch/roll so Y remains gravity-up.
-The proposed “first pose is identity” statement is true only with a level camera at
-the jig. We follow the frozen world-frame definition and do not modify the contract.
+**Coordinate clarification for kickoff:** normalization uses the complete frame-0
+camera basis, so frame 0 has zero position and identity quaternion as required by
+B's validator. This makes the replay basis exactly the camera-local basis used when
+the AR session starts at the jig.
 
 ## Phase 3: masks, budget and multiple recordings
 

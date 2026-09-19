@@ -1,0 +1,486 @@
+{
+  "version": 1,
+  "scene": "room008",
+  "duration": 40.40354983299039,
+  "chunks": [
+    {
+      "file": "chunks/0000.bin",
+      "t_start": 0.0,
+      "t_end": 0.5,
+      "count": 16629
+    },
+    {
+      "file": "chunks/0001.bin",
+      "t_start": 0.5,
+      "t_end": 1.0,
+      "count": 10296
+    },
+    {
+      "file": "chunks/0002.bin",
+      "t_start": 1.0,
+      "t_end": 1.5,
+      "count": 11694
+    },
+    {
+      "file": "chunks/0003.bin",
+      "t_start": 1.5,
+      "t_end": 2.0,
+      "count": 16611
+    },
+    {
+      "file": "chunks/0004.bin",
+      "t_start": 2.0,
+      "t_end": 2.5,
+      "count": 22630
+    },
+    {
+      "file": "chunks/0005.bin",
+      "t_start": 2.5,
+      "t_end": 3.0,
+      "count": 14209
+    },
+    {
+      "file": "chunks/0006.bin",
+      "t_start": 3.0,
+      "t_end": 3.5,
+      "count": 10201
+    },
+    {
+      "file": "chunks/0007.bin",
+      "t_start": 3.5,
+      "t_end": 4.0,
+      "count": 6847
+    },
+    {
+      "file": "chunks/0008.bin",
+      "t_start": 4.0,
+      "t_end": 4.5,
+      "count": 4125
+    },
+    {
+      "file": "chunks/0009.bin",
+      "t_start": 4.5,
+      "t_end": 5.0,
+      "count": 2888
+    },
+    {
+      "file": "chunks/0010.bin",
+      "t_start": 5.0,
+      "t_end": 5.5,
+      "count": 2635
+    },
+    {
+      "file": "chunks/0011.bin",
+      "t_start": 5.5,
+      "t_end": 6.0,
+      "count": 3076
+    },
+    {
+      "file": "chunks/0012.bin",
+      "t_start": 6.0,
+      "t_end": 6.5,
+      "count": 1467
+    },
+    {
+      "file": "chunks/0013.bin",
+      "t_start": 6.5,
+      "t_end": 7.0,
+      "count": 1272
+    },
+    {
+      "file": "chunks/0014.bin",
+      "t_start": 7.0,
+      "t_end": 7.5,
+      "count": 1299
+    },
+    {
+      "file": "chunks/0015.bin",
+      "t_start": 7.5,
+      "t_end": 8.0,
+      "count": 1107
+    },
+    {
+      "file": "chunks/0016.bin",
+      "t_start": 8.0,
+      "t_end": 8.5,
+      "count": 1156
+    },
+    {
+      "file": "chunks/0017.bin",
+      "t_start": 8.5,
+      "t_end": 9.0,
+      "count": 1498
+    },
+    {
+      "file": "chunks/0018.bin",
+      "t_start": 9.0,
+      "t_end": 9.5,
+      "count": 2549
+    },
+    {
+      "file": "chunks/0019.bin",
+      "t_start": 9.5,
+      "t_end": 10.0,
+      "count": 2858
+    },
+    {
+      "file": "chunks/0020.bin",
+      "t_start": 10.0,
+      "t_end": 10.5,
+      "count": 3417
+    },
+    {
+      "file": "chunks/0021.bin",
+      "t_start": 10.5,
+      "t_end": 11.0,
+      "count": 4667
+    },
+    {
+      "file": "chunks/0022.bin",
+      "t_start": 11.0,
+      "t_end": 11.5,
+      "count": 5943
+    },
+    {
+      "file": "chunks/0023.bin",
+      "t_start": 11.5,
+      "t_end": 12.0,
+      "count": 2776
+    },
+    {
+      "file": "chunks/0024.bin",
+      "t_start": 12.0,
+      "t_end": 12.5,
+      "count": 670
+    },
+    {
+      "file": "chunks/0025.bin",
+      "t_start": 12.5,
+      "t_end": 13.0,
+      "count": 1282
+    },
+    {
+      "file": "chunks/0026.bin",
+      "t_start": 13.0,
+      "t_end": 13.5,
+      "count": 687
+    },
+    {
+      "file": "chunks/0027.bin",
+      "t_start": 13.5,
+      "t_end": 14.0,
+      "count": 234
+    },
+    {
+      "file": "chunks/0028.bin",
+      "t_start": 14.0,
+      "t_end": 14.5,
+      "count": 61
+    },
+    {
+      "file": "chunks/0030.bin",
+      "t_start": 15.0,
+      "t_end": 15.5,
+      "count": 817
+    },
+    {
+      "file": "chunks/0031.bin",
+      "t_start": 15.5,
+      "t_end": 16.0,
+      "count": 369
+    },
+    {
+      "file": "chunks/0032.bin",
+      "t_start": 16.0,
+      "t_end": 16.5,
+      "count": 434
+    },
+    {
+      "file": "chunks/0033.bin",
+      "t_start": 16.5,
+      "t_end": 17.0,
+      "count": 821
+    },
+    {
+      "file": "chunks/0034.bin",
+      "t_start": 17.0,
+      "t_end": 17.5,
+      "count": 783
+    },
+    {
+      "file": "chunks/0035.bin",
+      "t_start": 17.5,
+      "t_end": 18.0,
+      "count": 1279
+    },
+    {
+      "file": "chunks/0036.bin",
+      "t_start": 18.0,
+      "t_end": 18.5,
+      "count": 931
+    },
+    {
+      "file": "chunks/0037.bin",
+      "t_start": 18.5,
+      "t_end": 19.0,
+      "count": 1241
+    },
+    {
+      "file": "chunks/0038.bin",
+      "t_start": 19.0,
+      "t_end": 19.5,
+      "count": 708
+    },
+    {
+      "file": "chunks/0039.bin",
+      "t_start": 19.5,
+      "t_end": 20.0,
+      "count": 581
+    },
+    {
+      "file": "chunks/0040.bin",
+      "t_start": 20.0,
+      "t_end": 20.5,
+      "count": 1331
+    },
+    {
+      "file": "chunks/0041.bin",
+      "t_start": 20.5,
+      "t_end": 21.0,
+      "count": 1556
+    },
+    {
+      "file": "chunks/0042.bin",
+      "t_start": 21.0,
+      "t_end": 21.5,
+      "count": 429
+    },
+    {
+      "file": "chunks/0043.bin",
+      "t_start": 21.5,
+      "t_end": 22.0,
+      "count": 529
+    },
+    {
+      "file": "chunks/0044.bin",
+      "t_start": 22.0,
+      "t_end": 22.5,
+      "count": 3023
+    },
+    {
+      "file": "chunks/0045.bin",
+      "t_start": 22.5,
+      "t_end": 23.0,
+      "count": 2730
+    },
+    {
+      "file": "chunks/0046.bin",
+      "t_start": 23.0,
+      "t_end": 23.5,
+      "count": 843
+    },
+    {
+      "file": "chunks/0047.bin",
+      "t_start": 23.5,
+      "t_end": 24.0,
+      "count": 3459
+    },
+    {
+      "file": "chunks/0048.bin",
+      "t_start": 24.0,
+      "t_end": 24.5,
+      "count": 1689
+    },
+    {
+      "file": "chunks/0049.bin",
+      "t_start": 24.5,
+      "t_end": 25.0,
+      "count": 1441
+    },
+    {
+      "file": "chunks/0050.bin",
+      "t_start": 25.0,
+      "t_end": 25.5,
+      "count": 652
+    },
+    {
+      "file": "chunks/0051.bin",
+      "t_start": 25.5,
+      "t_end": 26.0,
+      "count": 1021
+    },
+    {
+      "file": "chunks/0052.bin",
+      "t_start": 26.0,
+      "t_end": 26.5,
+      "count": 1662
+    },
+    {
+      "file": "chunks/0053.bin",
+      "t_start": 26.5,
+      "t_end": 27.0,
+      "count": 642
+    },
+    {
+      "file": "chunks/0054.bin",
+      "t_start": 27.0,
+      "t_end": 27.5,
+      "count": 220
+    },
+    {
+      "file": "chunks/0055.bin",
+      "t_start": 27.5,
+      "t_end": 28.0,
+      "count": 326
+    },
+    {
+      "file": "chunks/0056.bin",
+      "t_start": 28.0,
+      "t_end": 28.5,
+      "count": 75
+    },
+    {
+      "file": "chunks/0057.bin",
+      "t_start": 28.5,
+      "t_end": 29.0,
+      "count": 152
+    },
+    {
+      "file": "chunks/0058.bin",
+      "t_start": 29.0,
+      "t_end": 29.5,
+      "count": 371
+    },
+    {
+      "file": "chunks/0059.bin",
+      "t_start": 29.5,
+      "t_end": 30.0,
+      "count": 722
+    },
+    {
+      "file": "chunks/0060.bin",
+      "t_start": 30.0,
+      "t_end": 30.5,
+      "count": 229
+    },
+    {
+      "file": "chunks/0061.bin",
+      "t_start": 30.5,
+      "t_end": 31.0,
+      "count": 868
+    },
+    {
+      "file": "chunks/0062.bin",
+      "t_start": 31.0,
+      "t_end": 31.5,
+      "count": 1634
+    },
+    {
+      "file": "chunks/0063.bin",
+      "t_start": 31.5,
+      "t_end": 32.0,
+      "count": 475
+    },
+    {
+      "file": "chunks/0064.bin",
+      "t_start": 32.0,
+      "t_end": 32.5,
+      "count": 773
+    },
+    {
+      "file": "chunks/0065.bin",
+      "t_start": 32.5,
+      "t_end": 33.0,
+      "count": 3017
+    },
+    {
+      "file": "chunks/0066.bin",
+      "t_start": 33.0,
+      "t_end": 33.5,
+      "count": 779
+    },
+    {
+      "file": "chunks/0067.bin",
+      "t_start": 33.5,
+      "t_end": 34.0,
+      "count": 944
+    },
+    {
+      "file": "chunks/0068.bin",
+      "t_start": 34.0,
+      "t_end": 34.5,
+      "count": 962
+    },
+    {
+      "file": "chunks/0069.bin",
+      "t_start": 34.5,
+      "t_end": 35.0,
+      "count": 617
+    },
+    {
+      "file": "chunks/0070.bin",
+      "t_start": 35.0,
+      "t_end": 35.5,
+      "count": 512
+    },
+    {
+      "file": "chunks/0071.bin",
+      "t_start": 35.5,
+      "t_end": 36.0,
+      "count": 206
+    },
+    {
+      "file": "chunks/0072.bin",
+      "t_start": 36.0,
+      "t_end": 36.5,
+      "count": 339
+    },
+    {
+      "file": "chunks/0073.bin",
+      "t_start": 36.5,
+      "t_end": 37.0,
+      "count": 390
+    },
+    {
+      "file": "chunks/0074.bin",
+      "t_start": 37.0,
+      "t_end": 37.5,
+      "count": 851
+    },
+    {
+      "file": "chunks/0075.bin",
+      "t_start": 37.5,
+      "t_end": 38.0,
+      "count": 1600
+    },
+    {
+      "file": "chunks/0076.bin",
+      "t_start": 38.0,
+      "t_end": 38.5,
+      "count": 2161
+    },
+    {
+      "file": "chunks/0077.bin",
+      "t_start": 38.5,
+      "t_end": 39.0,
+      "count": 618
+    },
+    {
+      "file": "chunks/0078.bin",
+      "t_start": 39.0,
+      "t_end": 39.5,
+      "count": 138
+    }
+  ],
+  "alignment_chunk": "alignment.bin",
+  "wall_z": -1.8,
+  "floor_y": -1.516793966293335,
+  "sources": [
+    {
+      "id": 0,
+      "label": "Responder 1",
+      "device": "iPhone 14 Pro, Stray Scanner"
+    }
+  ],
+  "processing_seconds": 33.49933208397124
+}

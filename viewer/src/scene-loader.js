@@ -59,7 +59,7 @@ export async function loadScene(onProgress = () => {}) {
   let alignment = null;
   if (alignBuffer) {
     const a = parseChunk(alignBuffer, manifest.alignment_chunk);
-    alignment = { count: a.n, positions: a.positions, colors: a.rgbs, radius: a.radius, tSeen: a.tSeen };
+    alignment = { count: a.n, positions: a.positions, normals: a.normals, colors: a.rgbs, radius: a.radius, tSeen: a.tSeen };
   }
 
   // --- people

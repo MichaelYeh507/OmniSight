@@ -1,6 +1,11 @@
 # Raw recordings never go in git (share via the Drive folder). Keep the README.
 data/raw/*
 !data/raw/README.md
+# Recordings dropped directly under data/ (e.g. data/008) are raw too.
+data/[0-9]*/
+
+# Downloaded model weights (ultralytics fetches these on first use)
+*.pt
 
 # Derived outputs and large media
 people_out/

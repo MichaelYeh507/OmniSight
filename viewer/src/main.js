@@ -74,6 +74,30 @@ async function boot() {
   if (alignmentCloud) alignmentCloud.setLook(params.look);
   if (params.look === 'blueprint') staticCloud.uniforms.uSizeScale.value *= 0.5; // stippled surfaces instead of solid slabs
 
+  // Optional Gaussian-splat renderer (?renderer=spark): draw the same static points as
+  // oriented splats for a smooth surface. Keep the points cloud wired but hidden so the
+  // clock, commander and cutaway systems keep working; fall back to points if Spark fails.
+  if (params.renderer === 'spark') {
+    try {
+      const { SparkCloud } = await import('./spark.js');
+      // Splat the whole scene -- interior chunks AND the wall-exterior alignment cloud --
+      // so all of it is splats. Hide the interior points and drop the alignment points
+      // entirely (its geometry is in the splats now, and commander would otherwise
+      // re-show it as dots when cutaway toggles).
+      const sparkCloud = new SparkCloud(renderer, scene, [data.static, data.alignment], { sizeScale: params.psize });
+      sceneRoot.add(sparkCloud.object);
+      staticCloud.object.visible = false;
+      if (alignmentCloud) {
+        sceneRoot.remove(alignmentCloud.object);
+        alignmentCloud = null;
+      }
+      omni.renderer = 'spark';
+    } catch (err) {
+      console.error('[omni] spark renderer failed; falling back to points', err);
+      omni.renderer = 'points';
+    }
+  }
+
   // --- person ghosts (drawn through walls; hold + fade handled inside)
   let ghosts = null;
   if (data.people && data.people.totalPoints > 0) {

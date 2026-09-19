@@ -1,9 +1,6 @@
 """Round-trip test for common/omni_format.py. Owner: Dev C.
 
-Run with ``pytest common``. The module is marked xfail while the functions still
-raise NotImplementedError; it turns green on its own once they are implemented
-(non-strict xfail reports XPASS, never a failure). Any other exception or a wrong
-value is reported as a real failure.
+Run with ``pytest common``. These are required integration checks for A and B.
 """
 import json
 
@@ -11,10 +8,6 @@ import numpy as np
 import pytest
 
 from common import omni_format as of
-
-pytestmark = pytest.mark.xfail(
-    raises=NotImplementedError, reason="Dev C implements omni_format in hour 1"
-)
 
 
 def _random_splats(n, rng):
@@ -102,3 +95,48 @@ def test_people_round_trip(tmp_path):
     for b, fr in zip(back, frames):
         np.testing.assert_array_equal(b["positions"], fr["positions"])
         np.testing.assert_array_equal(b["rgba"], fr["rgba"])
+
+
+@pytest.mark.parametrize('data', [b'', b'OMNI', of.HEADER_STRUCT.pack(b'OMNI', 2, 0, 0, .5, 0),
+                                   of.HEADER_STRUCT.pack(b'OMNI', 1, 1, 0, .5, 0),
+                                   of.HEADER_STRUCT.pack(b'OMNI', 1, 0, 0, .5, 0) + b'extra'])
+def test_malformed_chunks_rejected(tmp_path, data):
+    path = tmp_path / 'bad.bin'
+    path.write_bytes(data)
+    with pytest.raises(ValueError):
+        of.read_chunk(path)
+
+
+@pytest.mark.parametrize('field', ['positions', 'normals', 'radius', 't_seen', 'rgbs'])
+def test_invalid_arrays_fail_without_creating_file(tmp_path, field):
+    arrays = dict(zip(['positions', 'normals', 'radius', 't_seen', 'rgbs'], _random_splats(3, np.random.default_rng(1))))
+    arrays[field] = arrays[field][:2]
+    path = tmp_path / 'bad.bin'
+    with pytest.raises(ValueError):
+        of.write_chunk(path, 0, .5, **arrays)
+    assert not path.exists()
+
+
+def test_people_empty_and_zero_point_frames(tmp_path):
+    index = of.write_people(tmp_path, [{'t': 1., 'frame': 3, 'positions': np.empty((0, 3)), 'rgba': np.empty((0, 4), np.uint8)}])
+    assert index == []
+    assert of.read_people(tmp_path) == []
+    assert (tmp_path / 'people.bin').read_bytes() == b''
+
+
+def test_people_offsets_and_truncation_rejected(tmp_path):
+    frame = {'t': 1., 'frame': 3, 'positions': np.array([[1., 2., 3.]]), 'rgba': np.array([[1, 2, 3, 255]], np.uint8)}
+    of.write_people(tmp_path, [frame])
+    blob = tmp_path / 'people.bin'
+    blob.write_bytes(blob.read_bytes()[:-1])
+    with pytest.raises(ValueError):
+        of.read_people(tmp_path)
+
+
+def test_unsorted_ghosts_do_not_overwrite_existing_files(tmp_path):
+    frame = {'t': 1., 'frame': 3, 'positions': np.array([[1., 2., 3.]]), 'rgba': np.array([[1, 2, 3, 255]], np.uint8)}
+    of.write_people(tmp_path, [frame])
+    before = (tmp_path / 'people.bin').read_bytes()
+    with pytest.raises(ValueError):
+        of.write_people(tmp_path, [dict(frame, t=2), frame])
+    assert (tmp_path / 'people.bin').read_bytes() == before

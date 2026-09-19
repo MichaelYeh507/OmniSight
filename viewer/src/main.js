@@ -24,6 +24,8 @@ async function boot() {
   document.body.dataset.mode = params.mode;
   document.body.dataset.look = params.look;
   omni.look = params.look;
+  document.body.dataset.capture = params.capture ? '1' : '';
+  omni.capture = params.capture;
   const status = $('status');
 
   // --- renderer, scene, camera

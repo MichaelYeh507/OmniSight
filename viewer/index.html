@@ -46,6 +46,8 @@
       body[data-mode="ar"] .commander-only { display: none; }
       body[data-mode="commander"] .ar-only { display: none; }
       #hud.hidden { display: none; }
+      /* clean capture for the demo video: only the honesty caption stays; in AR use Android Back to leave the session */
+      body[data-capture="1"] #hud .panel:not(#caption) { display: none; }
       #ar-status { max-width: 480px; }
       #ar-session { left: 12px; top: calc(env(safe-area-inset-top, 0px) + 88px); max-width: min(420px, calc(100vw - 44px)); font-size: 12px;
         max-height: calc(100dvh - 260px); overflow-y: auto; }

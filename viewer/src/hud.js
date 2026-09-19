@@ -80,6 +80,10 @@ export function setupHud({ clock, manifest, onTopDown, onCutaway, cutaway = fals
       e.preventDefault();
       clock.toggle();
     } else if (e.key === 'r') clock.restart();
+    else if (e.key === 'h') { // clean capture toggle for screen recordings (same as ?capture=1)
+      omni.capture = document.body.dataset.capture !== '1';
+      document.body.dataset.capture = omni.capture ? '1' : '';
+    }
     else if (e.key === 'ArrowRight') clock.seek(clock.time + 1);
     else if (e.key === 'ArrowLeft') clock.seek(clock.time - 1);
   });

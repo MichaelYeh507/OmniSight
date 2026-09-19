@@ -5,6 +5,7 @@
 //   &portaldebug=1 draws the portal in commander mode (headless verification only)
 //   &cutaway=0|1  commander only: clip the ceiling and the near wall so the room reads as a doll-house (default on)
 //   &look=xray|color|blueprint  x-ray (default): cyan fresh -> dim blue stale; color: recorded RGB; blueprint: dark on white (commander)
+//   &capture=1  clean capture for screen recordings: every HUD panel hidden except the honesty caption (key h toggles it on a keyboard)
 //   &ax=&ay=&az=&ayaw=  (alignment override in meters / degrees)
 const q = new URLSearchParams(location.search);
 
@@ -30,6 +31,7 @@ export const params = Object.freeze({
   cutaway: q.has('cutaway') ? q.get('cutaway') === '1' : null, // commander default: on (doll-house view)
   look: ['xray', 'color', 'blueprint'].includes(q.get('look')) ? q.get('look') : 'xray', // colour treatment of the static map
   align: { x: num('ax', NaN), y: num('ay', NaN), z: num('az', NaN), yaw: num('ayaw', NaN) },
+  capture: q.get('capture') === '1', // screen-recording mode: only the caption stays on screen
 });
 
 // Scene files live under public/scenes/<scene>/ and are served under the Vite base.

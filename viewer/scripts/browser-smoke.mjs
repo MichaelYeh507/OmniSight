@@ -150,6 +150,22 @@ try {
   const twoShot = await command('Page.captureScreenshot', { format: 'png' });
   await writeFile(resolve(output, 'responders-two.png'), Buffer.from(twoShot.data, 'base64'));
   await evaluate("document.getElementById('hud').classList.remove('hidden')");
+  // Clean capture for screen recordings: ?capture=1 leaves only the honesty caption; the h key toggles it.
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&capture=1&t=9` });
+  await waitFor('!!window.__omni?.clockObj && window.__omni.points > 0');
+  const shown = (id) => `getComputedStyle(document.getElementById('${id}')).display !== 'none'`;
+  const capture = await evaluate(`({flag: __omni.capture, body: document.body.dataset.capture, caption: ${shown('caption')},
+    controls: ${shown('controls')}, readout: ${shown('readout')}, legend: ${shown('legend')}, errors: __omni.errors})`);
+  assert.deepEqual(capture, { flag: true, body: '1', caption: true, controls: false, readout: false, legend: false, errors: [] });
+  await evaluate('__omni.clockObj.pause(); __omni.clockObj.seek(9)');
+  await waitFor('__omni.clock >= 9');
+  await new Promise((ok) => setTimeout(ok, 300));
+  const captureShot = await command('Page.captureScreenshot', { format: 'png' });
+  await writeFile(resolve(output, 'capture.png'), Buffer.from(captureShot.data, 'base64'));
+  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }))");
+  assert.deepEqual(await evaluate(`({flag: __omni.capture, controls: ${shown('controls')}, caption: ${shown('caption')}})`), { flag: false, controls: true, caption: true });
+  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }))");
+  assert.equal(await evaluate(shown('controls')), false);
   // Portal depth trick, forced on in commander mode: the hole follows the camera's forward ray onto the wall plane.
   await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&portaldebug=1&cutaway=0` });
   await waitFor('!!window.__omni?.portal && __omni.portal.enabled');
@@ -274,7 +290,7 @@ try {
     budgets.push(counts);
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ base, commander, ghost: { seen, fading }, responder, two, portal, looks, ar, alignment, budgets, output }, null, 2));
+  console.log(JSON.stringify({ base, commander, ghost: { seen, fading }, responder, two, capture, portal, looks, ar, alignment, budgets, output }, null, 2));
   await send('Browser.close');
 } finally {
   ws?.close();

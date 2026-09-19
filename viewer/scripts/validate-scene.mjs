@@ -56,6 +56,23 @@ function checkSplats(ch, file, { window, duration, wallZ, side, sourceIds }, fai
   if (badSource) fail(`${file}: ${badSource} splats whose source_id (rgbs byte 4) is not in manifest.sources`);
 }
 
+/** Yaw (deg, 0 means facing -Z) and tilt from level (deg) of a [x,y,z,w] quaternion; null when the forward axis is vertical. */
+export function firstPoseHeading(q) {
+  const rotate = ([vx, vy, vz]) => { // v' = q v q*
+    const [x, y, z, w] = q;
+    const ix = w * vx + y * vz - z * vy, iy = w * vy + z * vx - x * vz, iz = w * vz + x * vy - y * vx, iw = -x * vx - y * vy - z * vz;
+    return [ix * w + iw * -x + iy * -z - iz * -y, iy * w + iw * -y + iz * -x - ix * -z, iz * w + iw * -z + ix * -y - iy * -x];
+  };
+  const f = rotate([0, 0, -1]); // three.js camera looks along its own -Z
+  const horizontal = Math.hypot(f[0], f[2]);
+  if (horizontal < 1e-6) return null;
+  const up = rotate([0, 1, 0]);
+  return {
+    yawDeg: Math.atan2(-f[0], -f[2]) * (180 / Math.PI), // +yaw turns the forward axis toward -X (right-handed about +Y)
+    tiltDeg: Math.acos(Math.min(1, Math.max(-1, up[1]))) * (180 / Math.PI),
+  };
+}
+
 export function validateScene(dir, { budget = 800000, strictBudget = false } = {}) {
   const errors = [];
   const warnings = [];
@@ -178,10 +195,16 @@ export function validateScene(dir, { budget = 800000, strictBudget = false } = {
       if (bad) fail(`trajectory.json: ${bad} entries are not {t, source, position[3], quaternion[4]}`);
       const first = tr[0];
       if (first && Array.isArray(first.position) && Array.isArray(first.quaternion)) {
+        // World frame (docs/CONTRACT.md): origin at frame 0, -Z is frame 0's forward FLATTENED TO HORIZONTAL, Y stays gravity-up.
+        // So the first pose has zero position and zero yaw; pitch and roll from a not-quite-level jig are allowed (and reported),
+        // because the AR viewer's `local` space is gravity-aligned too. Do not "fix" a tilted first pose by rotating the world.
         const [x, y, z] = first.position;
-        const [qx, qy, qz, qw] = first.quaternion;
-        if (Math.hypot(x, y, z) > EPS || Math.hypot(qx, qy, qz, qw - 1) > EPS) {
-          fail(`trajectory.json[0]: first pose must be the identity (position [0,0,0], quaternion [0,0,0,1]); got ${JSON.stringify(first.position)} ${JSON.stringify(first.quaternion)}`);
+        const heading = firstPoseHeading(first.quaternion);
+        if (Math.hypot(x, y, z) > EPS) fail(`trajectory.json[0]: first position must be [0,0,0] (the jig is the origin); got ${JSON.stringify(first.position)}`);
+        if (!heading) fail('trajectory.json[0]: first pose looks straight up or down, so it has no horizontal heading; start the recording facing the wall');
+        else {
+          if (Math.abs(heading.yawDeg) > 0.5) fail(`trajectory.json[0]: first pose must face -Z after normalization (yaw ${heading.yawDeg.toFixed(1)} deg); normalize poses to frame 0 with a yaw-only transform`);
+          if (heading.tiltDeg > 10) warn(`trajectory.json[0]: first pose is tilted ${heading.tiltDeg.toFixed(1)} deg from level (jig not level); allowed, Y stays gravity-up`);
         }
       }
       if (lastT > duration + EPS) fail(`trajectory.json: last t ${lastT} is beyond duration ${duration}`);

@@ -144,6 +144,28 @@ test('generated box scene passes the validator', () => {
   fs.rmSync(path.dirname(dir), { recursive: true, force: true });
 });
 
+test('validator first pose: zero position and zero yaw required, pitch and roll from an unlevel jig allowed', () => {
+  const pitched = [Math.sin(-Math.PI / 24), 0, 0, Math.cos(-Math.PI / 24)]; // 15 deg pitch down, no yaw
+  const yawed = [0, Math.sin(Math.PI / 36), 0, Math.cos(Math.PI / 36)]; // 10 deg yaw
+  const cases = [
+    { quaternion: pitched, ok: true, pattern: /tilted 15\.0 deg/ },
+    { quaternion: yawed, ok: false, pattern: /must face -Z .*yaw 10\.0 deg/ },
+    { quaternion: [0, 0, 0, 1], position: [0.02, 0, 0], ok: false, pattern: /first position must be \[0,0,0\]/ },
+    { quaternion: [Math.sin(-Math.PI / 4), 0, 0, Math.cos(-Math.PI / 4)], ok: false, pattern: /no horizontal heading/ },
+  ];
+  for (const c of cases) {
+    const dir = tmpDir();
+    const scene = makeScene({ name: path.basename(dir), points: 1500, duration: 3, person: '1:2', personPoints: 20, personFps: 5 });
+    scene.trajectory[0] = { ...scene.trajectory[0], quaternion: c.quaternion, position: c.position || [0, 0, 0] };
+    writeScene(dir, scene);
+    const r = validateScene(dir);
+    assert.equal(r.ok, c.ok, `${JSON.stringify(c)} -> ${JSON.stringify(r.errors)}`);
+    const lines = [...r.errors, ...(r.warnings || [])];
+    assert.ok(lines.some((line) => c.pattern.test(line)), `expected ${c.pattern} in ${JSON.stringify(lines)}`);
+    fs.rmSync(path.dirname(dir), { recursive: true, force: true });
+  }
+});
+
 test('generated two-source scene: second responder with its own source id, one trajectory sorted by t, validator clean', () => {
   const dir = tmpDir();
   const scene = makeScene({ name: path.basename(dir), points: 3000, duration: 8, person: '1:2', personPoints: 50, personFps: 5, sources: 2 });

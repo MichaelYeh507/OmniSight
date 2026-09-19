@@ -35,6 +35,7 @@ export async function setupAR({ renderer, scene, camera, alignmentCloud, clock, 
     omni.xrFramebuffer = null;
     omni.domOverlay = null;
     omni.tracking = false;
+    omni.firstPose = null;
     clock.pause();
     clock.last = null;
     resetFps();
@@ -88,6 +89,7 @@ export async function setupAR({ renderer, scene, camera, alignmentCloud, clock, 
       omni.xrPresenting = true;
       omni.domOverlay = requested.domOverlayState.type;
       omni.resets = 0;
+      omni.firstPose = null;
       clock.seek(params.bench ? clock.duration : params.t);
       clock.pause();
       clock.last = null;
@@ -143,6 +145,15 @@ export async function setupAR({ renderer, scene, camera, alignmentCloud, clock, 
         const message = 'Tracking lost. Face a textured surface; return to the jig if alignment shifts.';
         if (tracking.textContent !== message) tracking.textContent = message;
         return;
+      }
+      // Diagnostic for the world-frame question: the first tracked viewer pose in `local` space. If Chrome's local space
+      // is gravity-aligned (the contract's assumption) a pitched phone reports its tilt here; if the space is the raw
+      // initial camera frame this is the identity. `npm run phone -- --expr "__omni.firstPose"` reads it.
+      if (!omni.firstPose && pose.transform && pose.transform.orientation) {
+        const { x, y, z, w } = pose.transform.orientation;
+        const p = pose.transform.position;
+        const upY = 1 - 2 * (x * x + z * z); // world-Y component of the viewer's up axis, from q * (0,1,0)
+        omni.firstPose = { position: [p.x, p.y, p.z], quaternion: [x, y, z, w], tiltDeg: Math.acos(Math.min(1, Math.max(-1, upY))) * (180 / Math.PI) };
       }
       const layer = renderer.xr.getBaseLayer();
       if (layer) {

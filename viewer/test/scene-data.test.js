@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseChunk } from '../src/format.js';
-import { mergeChunks, drawCountAt, poseIndexAt, computeBounds, ghostStateAt, GHOST_SEEN_GAP, GHOST_FADE, poseAt, intersectWallPlane } from '../src/scene-data.js';
+import { mergeChunks, drawCountAt, poseIndexAt, computeBounds, ghostStateAt, GHOST_SEEN_GAP, GHOST_FADE, poseAt, intersectWallPlane, clampWallHit } from '../src/scene-data.js';
 import { makeScene } from '../scripts/make-scene.mjs';
 
 test('mergeChunks concatenates in order and drawCountAt returns a growing prefix', () => {
@@ -105,4 +105,13 @@ test('intersectWallPlane finds the gaze hit on the wall and rejects misses', () 
   assert.equal(intersectWallPlane([0, 0, 0], [0, 0, 1], -1.8), null); // looking away
   assert.equal(intersectWallPlane([0, 0, 0], [1, 0, 0], -1.8), null); // parallel
   assert.equal(intersectWallPlane([0, 0, -3], [0, 0, -1], -1.8), null); // wall behind the viewer
+});
+
+test('clampWallHit leaves near hits alone and pulls grazing hits back to the reach', () => {
+  assert.deepEqual(clampWallHit([1, -0.5, -1.8], [0.2, 0.1, 0], 3), { hit: [1, -0.5, -1.8], clamped: false });
+  const far = clampWallHit([0.2, -108.4, -1.8], [0.2, 0.1, 0], 3); // phone tilted almost parallel to the wall
+  assert.equal(far.clamped, true);
+  assert.ok(Math.abs(far.hit[0] - 0.2) < 1e-9 && Math.abs(far.hit[1] - (0.1 - 3)) < 1e-9 && far.hit[2] === -1.8);
+  const diagonal = clampWallHit([4, 3, -1.8], [0, 0, 0], 2.5);
+  assert.ok(Math.abs(Math.hypot(diagonal.hit[0], diagonal.hit[1]) - 2.5) < 1e-9 && Math.abs(diagonal.hit[0] / diagonal.hit[1] - 4 / 3) < 1e-9);
 });

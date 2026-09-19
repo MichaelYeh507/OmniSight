@@ -11,7 +11,8 @@ const executable = process.env.OMNI_CHROME || [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(existsSync);
 if (!executable) throw new Error('Set OMNI_CHROME to a Chrome/Chromium executable.');
-const base = process.env.OMNI_URL || 'http://127.0.0.1:5173/OmniSight/';
+// OMNI_URL=https://michaelyeh507.github.io/OmniSight/ runs the same checks against the deployed site.
+const base = (process.env.OMNI_URL || 'http://127.0.0.1:5173/OmniSight/').replace(/\/?$/, '/');
 const cache = resolve('node_modules/.cache');
 await mkdir(cache, { recursive: true });
 const output = await mkdtemp(resolve(cache, 'omni-smoke-'));
@@ -234,8 +235,11 @@ try {
   assert.deepEqual(await evaluate('__omni.alignment'), { x: 0, y: 0, z: 0, yaw: 0 });
   assert.match(await evaluate("document.getElementById('alignment-status').textContent"), /could not be read/);
   await evaluate("localStorage.setItem('omnisight.alignment.v1', JSON.stringify({x: 1, yaw: 20}))");
+  // Draw caps on the gitignored stress scene (`npm run stress`); it is never deployed, so skip it when the manifest is absent.
+  const stressManifest = await fetch(`${base}scenes/stress/manifest.json`).then((r) => r.ok, () => false);
+  if (!stressManifest) console.warn(`[smoke] no stress scene at ${base}scenes/stress/, skipping the budget caps`);
   const budgets = [];
-  for (const budget of [200000, 400000, 800000, 0]) {
+  for (const budget of stressManifest ? [200000, 400000, 800000, 0] : []) {
     await command('Page.navigate', { url: `${base}?mode=commander&scene=stress&budget=${budget}&bench=1&ax=1&ayaw=20&cutaway=0` });
     await waitFor('!!window.__omni?.clockObj && __omni.clock === __omni.data.duration && __omni.points > 0');
     const counts = await evaluate(`({budget: __omni.budget, total: __omni.data.static.count,
@@ -248,7 +252,7 @@ try {
     budgets.push(counts);
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ commander, ghost: { seen, fading }, responder, portal, looks, ar, alignment, budgets, output }, null, 2));
+  console.log(JSON.stringify({ base, commander, ghost: { seen, fading }, responder, portal, looks, ar, alignment, budgets, output }, null, 2));
   await send('Browser.close');
 } finally {
   ws?.close();

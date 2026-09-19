@@ -1,7 +1,7 @@
 // Hand-written session lifecycle: the request stays directly in the tap handler.
 // Dependencies are passed in so lifecycle failures can be checked without an XR device.
 export async function setupAR({ renderer, scene, camera, alignmentCloud, clock, params,
-  omni, elements, onError, resetFps, xr = navigator.xr, secure = isSecureContext }) {
+  omni, elements, onError, resetFps, xr = navigator.xr, secure = isSecureContext, retryDelay = 800 }) {
   const { enter, exit, pre, hud, status, tracking, benchmark } = elements;
   renderer.xr.enabled = true;
   scene.background = null;
@@ -62,9 +62,18 @@ export async function setupAR({ renderer, scene, camera, alignmentCloud, clock, 
     let requested = null;
     try {
       // Do not await a support check here: preserve the user's transient activation.
-      requested = await xr.requestSession('immersive-ar', {
-        requiredFeatures: ['local'], optionalFeatures: ['dom-overlay'], domOverlay: { root: hud },
-      });
+      const options = { requiredFeatures: ['local'], optionalFeatures: ['dom-overlay'], domOverlay: { root: hud } };
+      try {
+        requested = await xr.requestSession('immersive-ar', options);
+      } catch (error) {
+        // Seen on the S21 Ultra: for about a second after a previous AR session ends (page navigation included), Chrome
+        // rejects with NotSupportedError while ARCore is still releasing the camera. One retry inside the same user
+        // activation (Chrome keeps it for 5 s) turns that into a short pause instead of an error the judge has to re-tap.
+        if (error?.name !== 'NotSupportedError' && !/not supported/i.test(error?.message || '')) throw error;
+        status.textContent = 'AR is still releasing the camera, retrying…';
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        requested = await xr.requestSession('immersive-ar', options);
+      }
       active = requested;
       requested.addEventListener('end', restore, { once: true });
       // Without the overlay we cannot offer alignment or an in-session Exit button.

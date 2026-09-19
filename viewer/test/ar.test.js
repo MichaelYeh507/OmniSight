@@ -12,7 +12,7 @@ class Element extends EventTarget {
   click() { this.dispatchEvent(new Event('click')); }
 }
 const settle = () => new Promise((resolve) => setImmediate(resolve));
-async function fixture({ supported = true, secure = true, overlay = true, requestError, setupError } = {}) {
+async function fixture({ supported = true, secure = true, overlay = true, requestError, requestErrorTimes = Infinity, setupError } = {}) {
   const elements = Object.fromEntries(['enter', 'exit', 'pre', 'hud', 'status', 'tracking', 'benchmark'].map((key) => [key, new Element()]));
   const calls = [];
   const errors = [];
@@ -22,7 +22,7 @@ async function fixture({ supported = true, secure = true, overlay = true, reques
     async isSessionSupported(type) { calls.push(['support', type]); return supported; },
     async requestSession(type, options) {
       calls.push(['request', type, options]);
-      if (requestError) throw requestError;
+      if (requestError && calls.filter((call) => call[0] === 'request').length <= requestErrorTimes) throw requestError;
       const session = new EventTarget();
       session.domOverlayState = overlay ? { type: 'screen' } : null;
       session.end = async () => { calls.push(['end']); session.dispatchEvent(new Event('end')); };
@@ -43,7 +43,7 @@ async function fixture({ supported = true, secure = true, overlay = true, reques
   const alignmentCloud = { visible: true };
   const omni = {};
   const mode = await setupAR({ renderer, scene, camera, alignmentCloud, clock, omni, elements, xr, secure,
-    params: { fbscale: 0.75, t: 0 }, onError: (e) => errors.push(e.message), resetFps() {} });
+    params: { fbscale: 0.75, t: 0 }, onError: (e) => errors.push(e.message), resetFps() {}, retryDelay: 1 });
   return { mode, elements, calls, errors, sessions, reference, clock, scene, alignmentCloud, omni };
 }
 
@@ -112,7 +112,30 @@ test('denied permission, missing overlay and renderer failure restore the start 
     assert.ok(!f.elements.pre.classes.has('hidden'));
     assert.ok(f.elements.hud.classes.has('hidden'));
     if (!options.requestError) assert.ok(f.calls.some((call) => call[0] === 'end'));
+    else assert.equal(f.calls.filter((call) => call[0] === 'request').length, 1); // a denial is never retried
   }
+});
+
+test('a NotSupportedError right after a previous session is retried once inside the same tap', async () => {
+  const notSupported = () => Object.assign(new Error('The specified session configuration is not supported.'), { name: 'NotSupportedError' });
+  const f = await fixture({ requestError: notSupported(), requestErrorTimes: 1 });
+  f.elements.enter.click();
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(f.calls.filter((call) => call[0] === 'request').length, 2);
+  assert.equal(f.sessions.length, 1);
+  assert.ok(f.omni.xrPresenting);
+  assert.deepEqual(f.errors, []);
+  // still failing after the retry: the normal error path, one readable message, Enter re-enabled
+  const g = await fixture({ requestError: notSupported() });
+  g.elements.enter.click();
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(g.calls.filter((call) => call[0] === 'request').length, 2);
+  assert.equal(g.sessions.length, 0);
+  assert.equal(g.errors.length, 1);
+  assert.equal(g.elements.enter.disabled, false);
+  assert.match(g.elements.status.textContent, /could not start/);
 });
 
 test('FPS measurement counts intervals over 10 seconds and exposes stalls in the half-second minimum', () => {

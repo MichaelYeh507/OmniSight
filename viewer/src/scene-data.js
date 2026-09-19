@@ -119,6 +119,19 @@ export function poseAt(trajectory, t) {
 
 // --- portal -----------------------------------------------------------------------
 /** Where the ray origin + s*dir (s > 0) crosses the plane z = wallZ, or null if it does not. */
+/**
+ * Keep a wall hit within `reach` metres (in the wall plane) of the point straight in front of the viewer.
+ * A grazing gaze puts the hit tens of metres away; the portal occluder must stay over the visible wall.
+ */
+export function clampWallHit(hit, origin, reach) {
+  const dx = hit[0] - origin[0];
+  const dy = hit[1] - origin[1];
+  const d = Math.hypot(dx, dy);
+  if (d <= reach) return { hit, clamped: false };
+  const k = reach / d;
+  return { hit: [origin[0] + dx * k, origin[1] + dy * k, hit[2]], clamped: true };
+}
+
 export function intersectWallPlane(origin, dir, wallZ) {
   if (Math.abs(dir[2]) < 1e-6) return null;
   const s = (wallZ - origin[2]) / dir[2];

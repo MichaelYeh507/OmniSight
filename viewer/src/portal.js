@@ -4,9 +4,10 @@
 // wall around a "window" into the room. Ghosts and the responder ignore depth and stay
 // visible through the whole wall. A thin additive ring marks the hole's edge.
 import * as THREE from 'three';
-import { intersectWallPlane } from './scene-data.js';
+import { intersectWallPlane, clampWallHit } from './scene-data.js';
 
 export const PORTAL_RADIUS = 0.6; // metres
+export const PORTAL_REACH = 3; // metres the hole may slide from the point straight ahead; keeps the occluder over the wall at grazing angles
 const RING_COLOR = 0x4dd9ff;
 const OCCLUDER_HALF = 20; // metres; big enough to cover any view of the wall
 
@@ -52,7 +53,7 @@ export class Portal {
     this.hit = [0, 0, wallZ];
     this.enabled = false;
     this.group.visible = false;
-    this.state = { enabled: false, hit: this.hit, miss: false };
+    this.state = { enabled: false, hit: this.hit, miss: false, clamped: false };
     this._origin = new THREE.Vector3();
     this._dir = new THREE.Vector3();
     this._inverse = new THREE.Matrix4();
@@ -73,11 +74,11 @@ export class Portal {
   /**
    * Center the hole where the camera's forward ray meets the wall plane, in sceneRoot
    * space (alignment nudges move sceneRoot, so the wall plane moves with it). On a miss
-   * the hole stays where it last was.
+   * the hole stays where it last was; a far grazing hit is pulled back to PORTAL_REACH.
    */
   update(camera, sceneRoot) {
     if (!this.enabled) {
-      this.state = { enabled: false, hit: this.hit, miss: false };
+      this.state = { enabled: false, hit: this.hit, miss: false, clamped: false };
       return this.state;
     }
     sceneRoot.updateMatrixWorld();
@@ -87,11 +88,12 @@ export class Portal {
     this._origin.applyMatrix4(this._inverse);
     this._dir.transformDirection(this._inverse);
     const hit = intersectWallPlane([this._origin.x, this._origin.y, this._origin.z], [this._dir.x, this._dir.y, this._dir.z], this.wallZ);
+    let clamped = false;
     if (hit) {
-      this.hit = hit;
+      ({ hit: this.hit, clamped } = clampWallHit(hit, [this._origin.x, this._origin.y], PORTAL_REACH));
       this.place();
     }
-    this.state = { enabled: true, hit: this.hit, miss: !hit };
+    this.state = { enabled: true, hit: this.hit, miss: !hit, clamped };
     return this.state;
   }
 

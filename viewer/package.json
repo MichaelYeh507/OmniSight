@@ -12,13 +12,16 @@
     "smoke": "node scripts/browser-smoke.mjs",
     "validate": "node scripts/validate-scene.mjs",
     "stress": "node scripts/make-scene.mjs --out public/scenes/stress --points 800000 --duration 60 --person 5:12",
-    "reverse": "adb reverse tcp:5173 tcp:5173"
+    "reverse": "adb reverse tcp:5173 tcp:5173",
+    "qr": "node scripts/make-qr.mjs",
+    "phone": "node scripts/phone-omni.mjs"
   },
   "dependencies": {
     "three": "0.186.0"
   },
   "devDependencies": {
     "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "qrcode": "^1.5.4",
     "vite": "^8.3.0"
   }
 }

@@ -7,7 +7,8 @@ Steps: load -> normalize -> fuse -> export. See "Pipeline design notes" in the
 master design doc. Sanity checks before handing a scene to B:
 
 - Walls are flat and meet at right angles in a point cloud viewer.
-- The first trajectory pose is the identity.
+- The first trajectory position and horizontal heading are zero (identity rotation
+  only for a level initial camera; preserve pitch/roll to keep gravity aligned).
 - Total points are within B's budget.
 - No person-shaped smear where the teammate stood.
 - ``node viewer/scripts/validate-scene.mjs <out>`` exits 0.
@@ -16,6 +17,8 @@ from __future__ import annotations
 
 import argparse
 import time
+import sys
+import math
 from pathlib import Path
 
 
@@ -24,14 +27,16 @@ def build_parser() -> argparse.ArgumentParser:
         prog="python -m pipeline.run",
         description="Turn a raw Stray Scanner recording into an OmniSight scene folder.",
     )
-    p.add_argument("take", type=Path, help="raw recording folder, e.g. data/raw/20260919_room_a_take3")
+    p.add_argument("take", type=Path, nargs='+', help="one or more recordings from the same physical jig")
     p.add_argument("--out", type=Path, required=True, help="scene folder to write, e.g. viewer/public/scenes/room_a_take3")
     p.add_argument("--voxel", type=float, default=0.025, help="voxel size in meters for dedupe (default 0.025)")
     p.add_argument("--wall-z", type=float, default=-1.8, dest="wall_z", help="wall plane; points with z > wall_z go to alignment.bin")
     p.add_argument("--stride", type=int, default=3, help="use every stride-th frame (default 3)")
-    p.add_argument("--masks", type=Path, default=None, help="folder of person masks from people/run.py (masks/NNNNNN.png)")
-    p.add_argument("--source-id", type=int, default=0, dest="source_id", help="source id written into rgbs byte 4 (default 0)")
-    p.add_argument("--label", default="Responder 1", help="source label for the manifest")
+    p.add_argument("--masks", type=Path, nargs='+', default=None, help="one mask folder per take, in take order; every selected frame must exist")
+    p.add_argument("--source-id", type=int, default=0, dest="source_id", help="first source ID; must be 0 under the v1 scene contract")
+    p.add_argument("--label", action='append', help="source label; repeat once per take, or omit for Responder N")
+    p.add_argument('--camera-convention', choices=['arkit', 'opencv'], default='arkit', help='raw camera axes; verify with pipeline.check_frames before the first real export')
+    p.add_argument('--max-points', type=int, default=800_000, help='viewer point budget including alignment; fail if exceeded (increase --voxel)')
     return p
 
 
@@ -41,20 +46,43 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     t0 = time.perf_counter()
 
-    rec = loader.load(args.take)
-    poses = normalize.normalize_poses(rec.poses)
-    points = fuse.fuse(rec, poses, voxel=args.voxel, stride=args.stride, masks_dir=args.masks, source_id=args.source_id)
-    export.export_scene(
-        points,
-        poses,
-        rec.timestamps,
-        args.out,
-        wall_z=args.wall_z,
-        scene_name=args.out.name,
-        sources=[{"id": args.source_id, "label": args.label, "device": "iPhone 14 Pro, Stray Scanner"}],
-        processing_seconds=time.perf_counter() - t0,
-    )
-    print(f"wrote {args.out} in {time.perf_counter() - t0:.1f} s")
+    try:
+        if args.stride < 1 or args.max_points < 1 or not math.isfinite(args.voxel) or args.voxel <= 0 or not math.isfinite(args.wall_z):
+            raise ValueError('stride, max-points and voxel must be positive; voxel and wall-z must be finite')
+        if args.out.exists():
+            raise FileExistsError(f'{args.out} exists; use a new scene folder')
+        if not 0 <= args.source_id <= 256 - len(args.take):
+            raise ValueError('source IDs must fit in 0..255')
+        if args.source_id != 0:
+            raise ValueError('the first source must have ID 0 per the scene contract')
+        for name, values in [('masks', args.masks), ('label', args.label)]:
+            if values is not None and len(values) != len(args.take):
+                raise ValueError(f'provide one {name} per take, in take order')
+        batches, all_poses, all_times, sources = [], {}, {}, []
+        if args.masks is None:
+            print('No person masks supplied: static map may contain people. Apply C’s masks before the Phase 3 handoff.', file=sys.stderr)
+        for i, take in enumerate(args.take):
+            source = args.source_id + i
+            rec = loader.load(take)
+            poses = normalize.normalize_poses(normalize.camera_poses(rec.poses, args.camera_convention))
+            batches.append(fuse.fuse(rec, poses, voxel=args.voxel, stride=args.stride,
+                                    masks_dir=args.masks[i] if args.masks else None, source_id=source))
+            all_poses[source], all_times[source] = poses[::args.stride], rec.timestamps[::args.stride]
+            sources.append({'id': source, 'label': args.label[i] if args.label else f'Responder {i + 1}',
+                            'device': 'iPhone 14 Pro, Stray Scanner'})
+        points = fuse.merge_points(batches, args.voxel) if len(batches) > 1 else batches[0]
+        count = len(points['positions'])
+        if count > args.max_points:
+            raise ValueError(f'{count:,} points exceed viewer budget {args.max_points:,}; increase --voxel and rerun')
+        export.export_scene(points, all_poses, all_times, args.out, wall_z=args.wall_z,
+                            scene_name=args.out.name, sources=sources, processing_seconds=time.perf_counter() - t0)
+    except NotImplementedError:
+        print('Dev C dependency pending: common.omni_format.write_chunk must be implemented before scene export. Phase 1 check_frames and extract commands work independently.', file=sys.stderr)
+        return 1
+    except (ValueError, OSError) as exc:
+        print(f'pipeline: {exc}', file=sys.stderr)
+        return 1
+    print(f"wrote {args.out}: {count:,} points, {len(sources)} source(s), {time.perf_counter() - t0:.1f} s")
     return 0
 
 

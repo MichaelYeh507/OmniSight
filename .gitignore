@@ -1,10 +1,11 @@
-# Raw recordings are kept in the checkout for pipeline integration tests.
+# Raw recordings never go in git (share via the Drive folder). Keep the README.
+data/raw/*
+!data/raw/README.md
 
 # Derived outputs and large media
 people_out/
 *.ply
 *.mp4
-!data/raw/*/rgb.mp4
 *.mov
 
 # Python

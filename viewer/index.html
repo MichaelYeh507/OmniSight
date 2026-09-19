@@ -7,27 +7,74 @@
     <title>OmniSight viewer</title>
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f14; color: #e8edf2;
-        font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+        font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
       #app canvas { display: block; }
+      button, select { font: inherit; color: inherit; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 6px; padding: 6px 10px; min-height: 36px; touch-action: manipulation; }
+      button.active { background: rgba(255, 176, 64, 0.35); border-color: rgba(255, 176, 64, 0.8); }
+      input[type="range"] { flex: 1; min-width: 80px; accent-color: #ffb040; }
+
       /* Pre-session UI. Lives OUTSIDE #hud because the XR session hides the overlay root on exit. */
       #pre { position: fixed; top: 0; left: 0; right: 0; padding: env(safe-area-inset-top, 0) 12px 0; pointer-events: none; }
       .card { pointer-events: auto; display: inline-block; margin: 10px 0; padding: 8px 12px;
         background: rgba(0, 0, 0, 0.6); border-radius: 8px; max-width: calc(100vw - 24px); }
       #error-banner { margin-top: 6px; padding: 6px 8px; background: #a11; color: #fff; border-radius: 6px; white-space: pre-wrap; }
+      #pre.hidden { display: none; }
+
       /* WebXR dom-overlay root. Only its children take pointer events. */
       #hud { position: fixed; inset: 0; pointer-events: none; }
       #hud > * { pointer-events: auto; }
+      .panel { position: absolute; background: rgba(0, 0, 0, 0.55); border-radius: 8px; padding: 6px 10px; }
+      #readout { top: calc(env(safe-area-inset-top, 0px) + 10px); right: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+      #readout .dim { opacity: 0.7; }
+      #legend { right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 66px); width: 150px; font-size: 12px; }
+      .legend-bar { height: 10px; border-radius: 5px; margin: 4px 0 2px;
+        background: linear-gradient(90deg, #d9b48c 0%, #d9b48c 16%, #8c9eb8 100%); }
+      .legend-labels { display: flex; justify-content: space-between; opacity: 0.8; }
+      #controls { left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      #ro-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+      #caption { left: 12px; top: calc(env(safe-area-inset-top, 0px) + 10px); font-size: 12px; opacity: 0.85; max-width: 60vw; }
+      body[data-mode="ar"] .commander-only { display: none; }
+      body[data-mode="commander"] .ar-only { display: none; }
+      #hud.hidden { display: none; }
     </style>
   </head>
   <body data-mode="commander">
     <div id="app"></div>
+
     <div id="pre">
       <div class="card">
         <strong>OmniSight</strong> <span id="status">loading scene...</span>
         <div id="error-banner" hidden></div>
       </div>
     </div>
-    <div id="hud"></div>
+
+    <div id="hud" class="hidden">
+      <div id="caption" class="panel commander-only">Replayed from a recorded walkthrough.</div>
+      <div id="readout" class="panel">
+        <div id="ro-scene" class="dim"></div>
+        <div><span id="ro-fps">0</span> fps <span class="dim">·</span> <span id="ro-points">0</span> pts</div>
+      </div>
+      <div id="legend" class="panel">
+        <div>Data age</div>
+        <div class="legend-bar"></div>
+        <div class="legend-labels"><span>now</span><span>5 s</span><span>30 s+</span></div>
+      </div>
+      <div id="controls" class="panel">
+        <button id="btn-play">Pause</button>
+        <button id="btn-restart">Restart</button>
+        <select id="sel-speed" title="Replay speed">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="4">4x</option>
+        </select>
+        <input id="scrub" type="range" min="0" max="1" step="0.01" value="0" />
+        <span id="ro-time">0.0 / 0.0 s</span>
+        <button id="btn-topdown" class="commander-only">Top-down</button>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

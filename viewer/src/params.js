@@ -1,6 +1,6 @@
 // Single place that reads the URL. Everything else imports `params`.
 //   ?mode=ar|commander  &scene=<folder>  &t=<s>  &speed=<x>  &budget=<max points>
-//   &fbscale=<xr framebuffer scale>  &round=1  &portal=0  &renderer=points|spark
+//   &fbscale=<xr framebuffer scale>  &round=1  &portal=0  &renderer=points|spark  &psize=<size multiplier>
 //   &ax=&ay=&az=&ayaw=  (alignment override in meters / degrees)
 const q = new URLSearchParams(location.search);
 
@@ -20,6 +20,7 @@ export const params = Object.freeze({
   round: q.get('round') === '1',
   portal: q.get('portal') !== '0',
   renderer: q.get('renderer') === 'spark' ? 'spark' : 'points',
+  psize: num('psize', 1), // point size multiplier
   align: { x: num('ax', NaN), y: num('ay', NaN), z: num('az', NaN), yaw: num('ayaw', NaN) },
 });
 

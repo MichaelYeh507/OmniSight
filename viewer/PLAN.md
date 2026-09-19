@@ -13,7 +13,7 @@ Companion to `CLAUDE.md`, `docs/CONTRACT.md` and "Viewer design notes (Dev B)" i
 | B4 | alignment nudges (x, y, z 1 cm, yaw 0.5 deg), alignment vs x-ray mode, localStorage + URL override | implemented, `main` 5ce7d44. 19 tests + build and Chrome smoke pass. Dev B confirmed X/Y/Z nudges, yaw and x-ray switching. Agent verified phone Save/reload persistence and temporary URL overrides without overwriting stored offsets. **Control checks passed; physical alignment was not attempted (B5)** |
 | B5 | first real scene from A: validator, alignment within ~10 cm at the jig | |
 | B6 | person ghosts with hold, 15 s fade, "person, last seen N s ago" label; staleness legend | implemented 2026-09-19: `src/ghosts.js` + pure `ghostStateAt` in `scene-data.js` (tested). Seen while the latest people frame is under 0.75 s old, then held and faded over 15 s; label sprite at the centroid; additive red-orange, depthTest off so it shows through walls. Headless smoke verifies seen / fading / hidden states and screenshots on C's `fake` scene. **Not yet seen on the Samsung in AR** |
-| B7 | portal (gaze-following hole in the wall plane) and responder frustum + trail | |
+| B7 | portal (gaze-following hole in the wall plane) and responder frustum + trail | implemented 2026-09-19: `src/portal.js` (depth-only oversized plane at wall_z + 0.02 with a 0.6 m hole, translated to where the camera's forward ray meets the wall plane in sceneRoot space; additive cyan ring; enabled only in AR x-ray mode, or `?portaldebug=1` in commander) and `src/responder.js` (frustum at the interpolated pose, trail via draw range; depthTest off). Pure `poseAt` / `intersectWallPlane` in `scene-data.js`, tested. Headless smoke: responder at 12 s (pose 120, 121 trail points) and portal-on vs portal-off screenshots at 20 s show the room only inside the ring. **Portal not yet seen in AR on the Samsung** |
 | B8 | commander polish (top-down, scrubber, caption), iPad Safari check, Pages URL + QR | |
 | B9 | bug duty on hero scenes, perf tuning with A, feature freeze at hour 16 | |
 | stretch | `?renderer=spark` with @sparkjsdev/spark 2.x (peer three >= 0.180); Points stays the fallback | after Phase 3 only |
@@ -39,6 +39,8 @@ viewer/
   src/benchmark.js       2 s warmup + 10 s XR-frame measurement, average and slowest half-second fps
   src/alignment.js       AR-only sceneRoot offsets, wall visibility, saved device offsets and URL precedence
   src/ghosts.js          Ghosts: one Points over the concatenated people arrays, setDrawRange per frame, additive red-orange, canvas-sprite label, hold + fade
+  src/responder.js       Responder: frustum LineSegments at poseAt(trajectory, t), trail Line with setDrawRange; depthTest off, renderOrder 8/9
+  src/portal.js          Portal: depth-only occluder plane with a hole + additive ring; update(camera, sceneRoot) moves the hole to the gaze hit on z = wall_z
   src/main.js            boot: params -> loadScene -> PointClouds under sceneRoot -> clock -> mode -> hud -> setAnimationLoop
   scripts/omni-format.mjs   Node encoder: encodeChunk, encodePeople, writeScene
   scripts/make-scene.mjs    box room generator (--points --duration --person a:b --wall-z --floor-y --seed --name)
@@ -53,7 +55,7 @@ viewer/
   public/scenes/fake/    Dev C's Python-generated room (pending)
 ```
 
-Planned files: `src/portal.js` and `src/responder.js` (B7).
+All planned viewer files now exist; B8 is polish, deploy and device checks.
 
 ## Technical decisions already made
 

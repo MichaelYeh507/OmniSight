@@ -114,6 +114,42 @@ try {
   await waitFor('__omni.clock < 3');
   assert.equal(await evaluate('__omni.ghost'), null);
   assert.equal(await evaluate("__omni.sceneRoot.getObjectByName('ghosts').visible"), false);
+  // Responder frustum + trail on the fake trajectory (201 poses over 20 s).
+  await evaluate('__omni.clockObj.seek(12)');
+  await waitFor('__omni.clock >= 12 && !!__omni.responder');
+  const responder = await evaluate('__omni.responder');
+  assert.equal(responder.index, 120);
+  assert.equal(responder.trailPoints, 121);
+  assert.ok(responder.position[2] < -1.8, `responder should be inside the room by 12 s: ${JSON.stringify(responder.position)}`);
+  assert.equal(await evaluate("__omni.sceneRoot.getObjectByName('responder').visible"), true);
+  await evaluate("document.getElementById('hud').classList.add('hidden')");
+  await new Promise((ok) => setTimeout(ok, 300));
+  const responderShot = await command('Page.captureScreenshot', { format: 'png' });
+  await writeFile(resolve(output, 'responder.png'), Buffer.from(responderShot.data, 'base64'));
+  await evaluate("document.getElementById('hud').classList.remove('hidden')");
+  // Portal depth trick, forced on in commander mode: the hole follows the camera's forward ray onto the wall plane.
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake&portaldebug=1` });
+  await waitFor('!!window.__omni?.portal && __omni.portal.enabled');
+  // pause before seeking to the end: a playing clock at t == duration wraps to 0 on the next frame
+  await evaluate('__omni.clockObj.pause(); __omni.clockObj.seek(20)');
+  await waitFor('__omni.clock >= 20 && __omni.points > 100000');
+  const portal = await evaluate('({...__omni.portal, visible: __omni.sceneRoot.getObjectByName("portal").visible, errors: __omni.errors})');
+  assert.ok(portal.visible && !portal.miss && Math.abs(portal.hit[2] - (-1.8)) < 1e-6, JSON.stringify(portal));
+  assert.deepEqual(portal.errors, []);
+  await evaluate("__omni.clockObj.pause(); document.getElementById('hud').classList.add('hidden')");
+  await new Promise((ok) => setTimeout(ok, 300));
+  const portalShot = await command('Page.captureScreenshot', { format: 'png' });
+  await writeFile(resolve(output, 'portal-debug.png'), Buffer.from(portalShot.data, 'base64'));
+  // same view without the portal, for comparison: no portal object at all in plain commander mode
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=fake` });
+  await waitFor('!!window.__omni?.clockObj && window.__omni.points > 0');
+  assert.equal(await evaluate("__omni.sceneRoot.getObjectByName('portal') ? true : false"), false);
+  await evaluate("__omni.clockObj.pause(); __omni.clockObj.seek(20); document.getElementById('hud').classList.add('hidden')");
+  await waitFor('__omni.clock >= 20 && __omni.points > 100000');
+  await new Promise((ok) => setTimeout(ok, 300));
+  const noPortalShot = await command('Page.captureScreenshot', { format: 'png' });
+  await writeFile(resolve(output, 'portal-off.png'), Buffer.from(noPortalShot.data, 'base64'));
+  await evaluate("document.getElementById('hud').classList.remove('hidden')");
   await evaluate("localStorage.setItem('omnisight.alignment.v1', JSON.stringify({x: 0.1, y: -0.2, z: 0.3, yaw: 1}))");
   await command('Page.navigate', { url: `${base}?mode=ar&scene=box` });
   await waitFor("!!window.__omni?.alignment && document.getElementById('btn-enter-ar').textContent === 'AR unavailable'");
@@ -181,7 +217,7 @@ try {
     budgets.push(counts);
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ commander, ghost: { seen, fading }, ar, alignment, budgets, output }, null, 2));
+  console.log(JSON.stringify({ commander, ghost: { seen, fading }, responder, portal, ar, alignment, budgets, output }, null, 2));
   await send('Browser.close');
 } finally {
   ws?.close();

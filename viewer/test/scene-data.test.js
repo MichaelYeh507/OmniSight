@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseChunk } from '../src/format.js';
-import { mergeChunks, drawCountAt, poseIndexAt, computeBounds, ghostStateAt, GHOST_SEEN_GAP, GHOST_FADE } from '../src/scene-data.js';
+import { mergeChunks, drawCountAt, poseIndexAt, computeBounds, ghostStateAt, GHOST_SEEN_GAP, GHOST_FADE, poseAt, intersectWallPlane } from '../src/scene-data.js';
 import { makeScene } from '../scripts/make-scene.mjs';
 
 test('mergeChunks concatenates in order and drawCountAt returns a growing prefix', () => {
@@ -77,4 +77,32 @@ test('ghostStateAt: none before the first sighting, seen while frames are fresh,
   const gone = ghostStateAt(entries, 11.9 + GHOST_SEEN_GAP + GHOST_FADE + 0.01);
   assert.equal(gone.alpha, 0);
   assert.equal(ghostStateAt(entries, 40).lastSeen, 28);
+});
+
+test('poseAt interpolates position and orientation between trajectory samples', () => {
+  const tr = [
+    { t: 0, position: [0, 0, 0], quaternion: [0, 0, 0, 1] },
+    { t: 1, position: [2, 0, -4], quaternion: [0, Math.SQRT1_2, 0, Math.SQRT1_2] }, // 90 deg yaw
+    { t: 2, position: [2, 0, -6], quaternion: [0, Math.SQRT1_2, 0, Math.SQRT1_2] },
+  ];
+  assert.equal(poseAt([], 1), null);
+  assert.deepEqual(poseAt(tr, -5).position, [0, 0, 0]);
+  const mid = poseAt(tr, 0.5);
+  assert.equal(mid.index, 0);
+  assert.deepEqual(mid.position, [1, 0, -2]);
+  const yaw = 2 * Math.atan2(mid.quaternion[1], mid.quaternion[3]) * (180 / Math.PI);
+  assert.ok(Math.abs(yaw - 45) < 1.5, `mid yaw ${yaw}`);
+  assert.ok(Math.abs(Math.hypot(...mid.quaternion) - 1) < 1e-9);
+  const end = poseAt(tr, 99);
+  assert.equal(end.index, 2);
+  assert.deepEqual(end.position, [2, 0, -6]);
+});
+
+test('intersectWallPlane finds the gaze hit on the wall and rejects misses', () => {
+  assert.deepEqual(intersectWallPlane([0, 0, 0], [0, 0, -1], -1.8), [0, 0, -1.8]);
+  const hit = intersectWallPlane([0.5, 1.2, 0.2], [0.1, -0.2, -1], -1.8);
+  assert.ok(Math.abs(hit[0] - 0.7) < 1e-9 && Math.abs(hit[1] - 0.8) < 1e-9 && hit[2] === -1.8);
+  assert.equal(intersectWallPlane([0, 0, 0], [0, 0, 1], -1.8), null); // looking away
+  assert.equal(intersectWallPlane([0, 0, 0], [1, 0, 0], -1.8), null); // parallel
+  assert.equal(intersectWallPlane([0, 0, -3], [0, 0, -1], -1.8), null); // wall behind the viewer
 });

@@ -94,3 +94,34 @@ export function ghostStateAt(entries, t) {
   const alpha = seen ? 1 : Math.max(0, 1 - (age - GHOST_SEEN_GAP) / GHOST_FADE);
   return { index, entry, age, seen, alpha, lastSeen: Math.floor(age) };
 }
+
+// --- responder pose ---------------------------------------------------------------
+/**
+ * Interpolated responder pose at time t: { index, position [x,y,z], quaternion [x,y,z,w] }.
+ * Linear position, normalized-lerp quaternion (poses are 0.1 s apart, so nlerp is fine).
+ * Before the first pose the first pose is returned; after the last, the last.
+ */
+export function poseAt(trajectory, t) {
+  if (!trajectory || !trajectory.length) return null;
+  const i = poseIndexAt(trajectory, t);
+  if (i < 0) return { index: 0, position: [...trajectory[0].position], quaternion: [...trajectory[0].quaternion] };
+  const a = trajectory[i];
+  const b = trajectory[i + 1];
+  if (!b || b.t <= a.t) return { index: i, position: [...a.position], quaternion: [...a.quaternion] };
+  const s = Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t)));
+  const position = a.position.map((v, k) => v + (b.position[k] - v) * s);
+  const dot = a.quaternion.reduce((acc, v, k) => acc + v * b.quaternion[k], 0);
+  const sign = dot < 0 ? -1 : 1; // shortest arc
+  const q = a.quaternion.map((v, k) => v * (1 - s) + sign * b.quaternion[k] * s);
+  const len = Math.hypot(...q) || 1;
+  return { index: i, position, quaternion: q.map((v) => v / len) };
+}
+
+// --- portal -----------------------------------------------------------------------
+/** Where the ray origin + s*dir (s > 0) crosses the plane z = wallZ, or null if it does not. */
+export function intersectWallPlane(origin, dir, wallZ) {
+  if (Math.abs(dir[2]) < 1e-6) return null;
+  const s = (wallZ - origin[2]) / dir[2];
+  if (s <= 0) return null;
+  return [origin[0] + dir[0] * s, origin[1] + dir[1] * s, wallZ];
+}

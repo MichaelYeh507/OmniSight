@@ -2,6 +2,7 @@
 //   ?mode=ar|commander  &scene=<folder>  &t=<s>  &speed=<x>  &budget=<max points>
 //   &fbscale=<xr framebuffer scale>  &round=1  &portal=0  &renderer=points|spark  &psize=<size multiplier>
 //   &bench=1 holds the complete scene, paused, for point-budget measurements
+//   &portaldebug=1 draws the portal in commander mode (headless verification only)
 //   &ax=&ay=&az=&ayaw=  (alignment override in meters / degrees)
 const q = new URLSearchParams(location.search);
 
@@ -21,6 +22,7 @@ export const params = Object.freeze({
   fbscale: Math.min(2, Math.max(0.1, num('fbscale', 1))), // WebXR framebuffer scale factor
   round: q.get('round') === '1',
   portal: q.get('portal') !== '0',
+  portaldebug: q.get('portaldebug') === '1', // draw the portal in commander mode too (verification only)
   renderer: q.get('renderer') === 'spark' ? 'spark' : 'points',
   psize: num('psize', 1), // point size multiplier
   align: { x: num('ax', NaN), y: num('ay', NaN), z: num('az', NaN), yaw: num('ayaw', NaN) },

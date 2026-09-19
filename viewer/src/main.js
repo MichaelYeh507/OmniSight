@@ -11,6 +11,8 @@ import { setupAR } from './modes/ar.js';
 import { setupBenchmark } from './benchmark.js';
 import { setupAlignment } from './alignment.js';
 import { Ghosts } from './ghosts.js';
+import { Responder } from './responder.js';
+import { Portal } from './portal.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -75,8 +77,21 @@ async function boot() {
   }
   omni.ghostFrames = data.people ? data.people.entries.length : 0;
 
+  // --- responder frustum + trail, and the portal (AR x-ray mode only, or ?portaldebug=1)
+  let responder = null;
+  if (data.trajectory.length) {
+    responder = new Responder(data.trajectory);
+    sceneRoot.add(responder.group);
+  }
+  let portal = null;
+  if (params.portal && data.wallZ !== null && (params.mode === 'ar' || params.portaldebug)) {
+    portal = new Portal({ wallZ: data.wallZ });
+    sceneRoot.add(portal.group);
+  }
+
   // --- clock + mode + hud
-  const clock = new ReplayClock({ duration: data.duration, t: params.t, speed: params.speed });
+  // ?t= at or past the end means "show the finished map": start paused there instead of wrapping to 0
+  const clock = new ReplayClock({ duration: data.duration, t: params.t, speed: params.speed, playing: params.t < data.duration });
   omni.clockObj = clock;
 
   if (params.bench) { clock.seek(data.duration); clock.pause(); }
@@ -110,6 +125,12 @@ async function boot() {
     omni.points = staticCloud.drawCount + (alignmentCloud && alignmentCloud.visible ? alignmentCloud.count : 0);
     omni.ghost = ghosts ? ghosts.update(t) : null;
     if (omni.ghost && omni.ghost.visible) omni.points += omni.ghost.count;
+    omni.responder = responder ? responder.update(t) : null;
+    if (portal) {
+      // the portal is for x-ray mode: off while aligning (the wall cloud must be fully visible) and before the XR session
+      portal.setEnabled(params.portaldebug || (omni.xrPresenting && !omni.aligning));
+      omni.portal = portal.update(renderer.xr.isPresenting ? renderer.xr.getCamera() : camera, sceneRoot);
+    }
     mode.update(time, frame);
     benchmark.update(time, frame);
     hud.update(time);

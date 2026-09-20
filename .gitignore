@@ -7,6 +7,8 @@ people_out/
 *.ply
 *.mp4
 *.mov
+# except the demo cuts, kept small (under 50 MB each) so teammates can watch them from the repo
+!demo/*.mp4
 
 # Python
 __pycache__/

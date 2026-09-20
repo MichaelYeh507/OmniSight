@@ -44,3 +44,17 @@ test('a single-source trajectory keeps the old shape: one group named responder,
   assert.equal(new Responder([]).update(5), null);
   assert.equal(new Responders([], []).update(5).length, 0);
 });
+
+test('trail wall clip: a plane keeps the path inside the room, null removes it', async () => {
+  const { Responders } = await import('../src/responder.js');
+  const { parseWall } = await import('../src/scene-data.js');
+  const THREE = await import('three');
+  const rs = new Responders([{ t: 0, source: 0, position: [0, 0, 0], quaternion: [0, 0, 0, 1] }, { t: 1, source: 0, position: [2, 0, 0], quaternion: [0, 0, 0, 1] }]);
+  rs.setWallClip(parseWall('-x:0.46'), 0.1);
+  const [plane] = rs.items[0].trail.material.clippingPlanes;
+  assert.deepEqual(plane.normal.toArray().map((v) => v + 0), [1, 0, 0]); // + 0 folds the -0 of negating a zero component
+  assert.ok(Math.abs(plane.constant - (-0.46 - 0.1)) < 1e-9); // dot(n, p) + c >= 0 keeps x >= 0.56: inside the room
+  assert.ok(plane.distanceToPoint(new THREE.Vector3(2, 0, 0)) > 0 && plane.distanceToPoint(new THREE.Vector3(-0.6, 0, 0)) < 0);
+  rs.setWallClip(null);
+  assert.equal(rs.items[0].trail.material.clippingPlanes, null);
+});

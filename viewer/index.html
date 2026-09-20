@@ -6,60 +6,147 @@
     <meta name="theme-color" content="#0b0f14" />
     <title>OmniSight viewer</title>
     <style>
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f14; color: #e8edf2;
-        font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
+      /* Minimal HUD: no panels, hairlines and small tracked caps over the feed; colour only where it means something
+         (cyan = the map, orange = a person, red = a hand-drawn outline, amber = aligning). */
+      :root {
+        --ink: #eef3f6;
+        --ink-dim: rgba(238, 243, 246, 0.62);
+        --ink-faint: rgba(238, 243, 246, 0.34);
+        --cyan: #6fe3ff;
+        --line: rgba(238, 243, 246, 0.28);
+        --panel: rgba(4, 10, 16, 0.72);
+        --person: #ff8a4a;
+        --outline: #ff2d55;
+        --amber: #ffb040;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.45);
+        --pad: clamp(14px, 2.4vmin, 28px);
+        --top: calc(env(safe-area-inset-top, 0px) + var(--pad));
+        --bottom: calc(env(safe-area-inset-bottom, 0px) + var(--pad));
+      }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f14; color: var(--ink);
+        font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
       #app canvas { display: block; }
-      button, select { font: inherit; color: inherit; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.25);
-        border-radius: 6px; padding: 6px 10px; min-height: 36px; touch-action: manipulation; }
-      button.active { background: rgba(255, 176, 64, 0.35); border-color: rgba(255, 176, 64, 0.8); }
-      button:disabled { opacity: 0.5; }
+      button, select { font: inherit; font-size: 11.5px; font-weight: 500; letter-spacing: 0.03em; color: var(--ink);
+        background: rgba(4, 10, 16, 0.35); border: 1px solid var(--line); border-radius: 2px; padding: 8px 12px; min-height: 36px; touch-action: manipulation; }
+      button.active { border-color: var(--amber); color: var(--amber); }
+      button.primary.active { border-color: var(--cyan); color: var(--cyan); }
+      button:disabled { opacity: 0.4; }
       [hidden] { display: none !important; }
-      input[type="range"] { flex: 1; min-width: 80px; accent-color: #ffb040; }
+      input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--cyan); }
+      .label { font-size: 10px; font-weight: 500; letter-spacing: 0.06em; color: var(--ink-dim); text-shadow: var(--shadow); }
+      .num { font-variant-numeric: tabular-nums; }
 
       /* Pre-session UI. Lives OUTSIDE #hud because the XR session hides the overlay root on exit. */
       #pre { position: fixed; top: 0; left: 0; right: 0; padding: env(safe-area-inset-top, 0) 12px 0; pointer-events: none; }
-      .card { pointer-events: auto; display: inline-block; margin: 10px 0; padding: 8px 12px;
-        background: rgba(0, 0, 0, 0.6); border-radius: 8px; max-width: calc(100vw - 24px); }
-      #error-banner { margin-top: 6px; padding: 6px 8px; background: #a11; color: #fff; border-radius: 6px; white-space: pre-wrap; }
+      .card { pointer-events: auto; display: inline-block; margin: 10px 0; padding: 10px 14px;
+        background: var(--panel); border: 1px solid var(--line); border-radius: 4px; max-width: calc(100vw - 24px); }
+      #error-banner { margin-top: 6px; padding: 6px 8px; background: #a11; color: #fff; border-radius: 4px; white-space: pre-wrap; }
       #pre.hidden { display: none; }
 
       /* WebXR dom-overlay root. Only its children take pointer events. */
-      #hud { position: fixed; inset: 0; pointer-events: none; background: transparent; }
+      #hud { position: fixed; inset: 0; pointer-events: none; background: transparent; text-shadow: var(--shadow); }
       #hud > * { pointer-events: auto; }
-      .panel { position: absolute; background: rgba(0, 0, 0, 0.55); border-radius: 8px; padding: 6px 10px; }
-      #readout { top: calc(env(safe-area-inset-top, 0px) + 10px); right: 12px; text-align: right; font-variant-numeric: tabular-nums; }
-      #readout .dim { opacity: 0.7; }
-      #legend { right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 66px); width: 150px; font-size: 12px; }
-      .legend-bar { height: 10px; border-radius: 5px; margin: 4px 0 2px;
-        background: linear-gradient(90deg, #d9b48c 0%, #d9b48c 16%, #8c9eb8 100%); }
-      .legend-labels { display: flex; justify-content: space-between; opacity: 0.8; }
+      .panel { position: absolute; }
+      body[data-hud="0"] #hud { display: none; }
+      body[data-hud="0"], :root:has(body[data-hud="0"]) { background: #000 !important; } /* a bare layer renders over black */
+
+      /* top-left: mode word and the two actions */
+      #ar-session { left: var(--pad); top: var(--top); max-width: min(360px, calc(100vw - 2 * var(--pad) - 170px)); }
+      #ro-mode { font-size: 13px; font-weight: 500; letter-spacing: 0.06em; color: var(--cyan); line-height: 1.2; margin: 0 0 8px; }
+      body[data-xray="0"] #ro-mode { color: var(--ink-dim); }
+      body[data-aligning="1"] #ro-mode { color: var(--amber); }
+      #ro-tracking { font-size: 11px; color: var(--ink-dim); margin-bottom: 6px; }
+      #ro-tracking:empty { display: none; }
+      #ar-session .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+      #xr-error { background: #a11; padding: 6px; border-radius: 4px; margin-top: 6px; font-size: 12px; }
+      body[data-ui="ar"] #btn-exit-ar, body[data-ui="ar"] #btn-benchmark, body[data-ui="ar"] #benchmark-status { display: none; }
+
+      /* top-centre: heading tape (degrees from the recording's forward) */
+      #tape { left: 50%; top: var(--top); transform: translateX(-50%); width: min(300px, 44vw); text-align: center; }
+      #tape canvas { display: block; width: 100%; height: 26px; }
+      #ro-heading { font-size: 11px; font-weight: 500; letter-spacing: 0.04em; color: var(--ink); margin-top: 2px; }
+
+      /* top-right: points, then the team map */
+      #readout { top: var(--top); right: var(--pad); text-align: right; font-size: 11px; color: var(--ink-dim); letter-spacing: 0.06em; }
+      #readout .big { font-size: 13px; font-weight: 500; color: var(--ink); }
+      #readout .fps { display: none; }
+      body[data-mode="commander"]:not([data-ui="ar"]) #readout .fps { display: inline; }
+      #map { top: calc(var(--top) + 24px); right: var(--pad); }
+      #map canvas { display: block; }
+      #map .map-keys { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; font-size: 9.5px; letter-spacing: 0.03em; color: var(--ink-dim); white-space: nowrap; }
+      #map .map-keys i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+      /* minimap showcase render (?mapsize=): only the map, centred, large key */
+      body[data-maponly="1"] #hud > :not(#map) { display: none; }
+      body[data-maponly="1"] #map { top: 50%; right: auto; left: 50%; transform: translate(-50%, -50%); }
+      body[data-maponly="1"] #map .map-keys { font-size: 22px; gap: 22px; margin-top: 14px; justify-content: center; }
+      body[data-maponly="1"] #map .map-keys i { width: 14px; height: 14px; margin-right: 8px; }
+      body[data-maponly="1"], :root:has(body[data-maponly="1"]) { background: #000 !important; }
+      body[data-maponly="1"] #app { visibility: hidden; } /* the 3D layer still runs (the map reads its state) but is not shown */
+
+      /* the radial view selector, centred; drawn by src/wheel.js only while open */
+      #wheel { left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+      #wheel canvas { display: block; opacity: 0; transition: none; }
+      #ro-mode { cursor: pointer; }
+      #ro-mode::after { content: " ▾"; color: var(--ink-faint); font-size: 10px; }
+
+      /* gaze reticle, only in x-ray */
+      #reticle { left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; pointer-events: none; opacity: 0.55; }
+      #reticle::before, #reticle::after { content: ""; position: absolute; background: var(--ink); }
+      #reticle::before { left: 8px; top: 0; width: 2px; height: 18px; clip-path: polygon(0 0, 100% 0, 100% 28%, 0 28%, 0 72%, 100% 72%, 100% 100%, 0 100%); }
+      #reticle::after { top: 8px; left: 0; height: 2px; width: 18px; clip-path: polygon(0 0, 28% 0, 28% 100%, 0 100%, 72% 0, 100% 0, 100% 100%, 72% 100%); }
+      body[data-xray="0"] #reticle, body[data-mode="commander"]:not([data-ui="ar"]) #reticle { display: none; }
+
+      /* bottom-left: one-line key; bottom-centre: the honesty caption; bottom edge: progress */
+      #legend { left: var(--pad); bottom: calc(var(--bottom) + 22px); font-size: 10px; letter-spacing: 0.03em; color: var(--ink-dim);
+        display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+      .legend-bar { width: 56px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, #d9b48c 0%, #d9b48c 16%, #8c9eb8 100%); }
+      .legend-age { display: flex; align-items: center; gap: 6px; }
       body[data-look="xray"] .legend-bar { background: linear-gradient(90deg, #9ef4ff 0%, #9ef4ff 16%, #24476b 100%); }
       body[data-look="blueprint"] .legend-bar { background: linear-gradient(90deg, #34486a 0%, #34486a 16%, #a8b6c8 100%); }
       body[data-look="blueprint"] { background: #f4f6f8; }
-      .legend-ghost { margin-top: 6px; display: flex; align-items: center; gap: 6px; opacity: 0.9; }
-      .legend-ghost .swatch { width: 12px; height: 12px; border-radius: 50%; background: #ff5c1f; box-shadow: 0 0 6px #ff5c1f; flex: none; }
-      .legend-responder { margin-top: 4px; display: flex; align-items: center; gap: 6px; opacity: 0.9; }
-      .legend-responder .swatch { width: 12px; height: 4px; border-radius: 2px; flex: none; }
-      #controls { left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      #ro-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
-      #caption { left: 12px; top: calc(env(safe-area-inset-top, 0px) + 10px); font-size: 12px; opacity: 0.85; max-width: 60vw; }
-      body[data-mode="ar"] .commander-only { display: none; }
-      body[data-mode="commander"] .ar-only { display: none; }
+      .legend-ghost, .legend-outline { display: flex; align-items: center; gap: 6px; }
+      .legend-ghost .swatch { width: 7px; height: 7px; border-radius: 50%; background: var(--person); flex: none; }
+      .legend-outline .swatch { width: 7px; height: 7px; border: 1.5px solid var(--outline); border-radius: 1px; flex: none; }
+      .legend-responder { display: flex; align-items: center; gap: 6px; }
+      .legend-responder .swatch { width: 10px; height: 2px; flex: none; }
+      #legend-responders { display: flex; gap: 12px; }
+      body[data-xray="0"]:not([data-aligning="1"]) #legend { display: none; } /* nothing is revealed, nothing to explain */
+      #caption { left: 50%; bottom: calc(var(--bottom) + 22px); transform: translateX(-50%); font-size: 10.5px; letter-spacing: 0.06em; color: var(--ink-dim); white-space: nowrap; }
+      #progress { left: 0; right: 0; bottom: 0; height: calc(var(--bottom) + 8px); pointer-events: none; }
+      #progress .bar { position: absolute; left: var(--pad); right: var(--pad); bottom: var(--bottom); height: 2px; background: rgba(238, 243, 246, 0.18); }
+      #progress .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--cyan); }
+      #progress .time { position: absolute; right: var(--pad); bottom: calc(var(--bottom) + 8px); font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-dim); }
+
+      /* the replay transport: a working control on a laptop/iPad, hidden on the phone preview (the progress line stands in) */
+      #controls { left: var(--pad); right: var(--pad); bottom: calc(var(--bottom) + 40px); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      #controls .tag { font-size: 10px; letter-spacing: 0.04em; color: var(--ink-dim); font-weight: 500; margin-right: 2px; }
+      #ro-time { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
+      body[data-ui="ar"] #controls, body[data-mode="ar"] #controls { display: none; }
+      body[data-mode="commander"]:not([data-ui="ar"]) #progress, body[data-mode="commander"]:not([data-ui="ar"]) #tape { display: none; }
+      body[data-mode="commander"]:not([data-ui="ar"]) #legend { bottom: calc(var(--bottom) + 92px); }
+      body[data-mode="commander"]:not([data-ui="ar"]) #caption { bottom: calc(var(--bottom) + 92px); left: auto; right: var(--pad); transform: none; }
+      @media (max-width: 900px) { body[data-mode="commander"]:not([data-ui="ar"]) #legend { display: none; } }
+
+      body[data-mode="ar"] .commander-only, body[data-ui="ar"] .commander-only { display: none; }
+      body[data-mode="commander"]:not([data-ui="ar"]) .ar-only { display: none; }
+      body[data-ui="ar"] { background: transparent; --pad: 5vmin; } /* phone-screen preview: footage or black behind the page; 5 % graphics-safe inset */
+      :root:has(body[data-ui="ar"]) { background: transparent; }
       #hud.hidden { display: none; }
       /* clean capture for the demo video: only the honesty caption stays; in AR use Android Back to leave the session */
-      body[data-capture="1"] #hud .panel:not(#caption) { display: none; }
+      body[data-capture="1"] #hud > :not(#caption) { display: none; }
       #ar-status { max-width: 480px; }
-      #ar-session { left: 12px; top: calc(env(safe-area-inset-top, 0px) + 88px); max-width: min(420px, calc(100vw - 44px)); font-size: 12px;
-        max-height: calc(100dvh - 260px); overflow-y: auto; }
-      #ar-session button { margin: 4px 4px 4px 0; }
-      #xr-error { background: #a11; padding: 6px; border-radius: 6px; }
-      body[data-mode="ar"] #caption { max-width: 45vw; }
-      body[data-mode="ar"] #readout { font-size: 12px; max-width: 46vw; }
       .alignment-row { display: grid; grid-template-columns: 28px 36px minmax(60px, 1fr) 36px 62px; gap: 4px; align-items: center; }
       .alignment-row input { width: 100%; min-width: 0; }
       .alignment-row output { text-align: right; font-variant-numeric: tabular-nums; }
-      #ar-session .alignment-row button { padding: 4px; margin: 2px 0; min-height: 40px; }
-      #alignment-status, #alignment-missing { margin-top: 6px; }
+      #alignment-controls { margin-top: 8px; font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+      #alignment-controls .alignment-row button { padding: 4px; margin: 2px 0; min-height: 40px; }
+      #alignment-status, #alignment-missing { margin-top: 6px; color: var(--ink-dim); }
+      @media (max-width: 600px) {
+        #caption { font-size: 9.5px; max-width: calc(100vw - 2 * var(--pad)); white-space: normal; text-align: center; bottom: calc(var(--bottom) + 22px); }
+        #legend { gap: 10px; font-size: 9px; bottom: calc(var(--bottom) + 58px); }
+        #tape { width: 38vw; }
+      }
     </style>
   </head>
   <body data-mode="commander">
@@ -71,24 +158,21 @@
         <div id="error-banner" hidden></div>
         <div class="ar-only">
           <p id="ar-status" role="status">Checking AR support…</p>
-          <button id="btn-enter-ar" disabled>Checking AR…</button>
+          <button id="btn-enter-ar" class="primary" disabled>Checking AR…</button>
         </div>
       </div>
     </div>
 
     <div id="hud" class="hidden">
-      <div id="caption" class="panel">Replayed from a recorded walkthrough.</div>
-      <div id="readout" class="panel">
-        <div id="ro-scene" class="dim"></div>
-        <div id="ro-xr" class="ar-only dim"></div>
-        <div><span id="ro-fps">0</span> fps <span class="dim">·</span> <span id="ro-points">0</span> pts</div>
-      </div>
       <div id="ar-session" class="panel ar-only">
+        <div id="ro-mode" role="button" tabindex="0" title="View (key m): Camera, X-ray, Natural">X-ray</div>
         <div id="ro-tracking" role="status"></div>
-        <div id="ro-alignment-mode">X-ray mode</div>
-        <button id="btn-exit-ar" disabled>Exit AR</button>
-        <button id="btn-align" aria-pressed="false" aria-expanded="false" aria-controls="alignment-controls">Align wall</button>
-        <button id="btn-benchmark" disabled>Measure 10 s</button>
+        <div class="actions">
+          <button id="btn-xray" class="primary active" aria-pressed="true" title="Camera view or x-ray (key x); key m opens the view wheel">X-ray</button>
+          <button id="btn-align" aria-pressed="false" aria-expanded="false" aria-controls="alignment-controls">Align</button>
+          <button id="btn-benchmark" disabled>Measure 10 s</button>
+          <button id="btn-exit-ar" disabled>Exit</button>
+        </div>
         <div id="benchmark-status" role="status"></div>
         <div id="xr-error" role="alert" hidden></div>
         <div id="alignment-controls" hidden>
@@ -115,14 +199,31 @@
           <div id="alignment-missing" hidden>No alignment cloud in this scene. Nudges still move the map; real-wall alignment needs alignment.bin.</div>
         </div>
       </div>
+      <div id="tape" class="panel ar-only">
+        <canvas id="tape-canvas" width="600" height="52"></canvas>
+        <div id="ro-heading" class="num">000</div>
+      </div>
+      <div id="readout" class="panel">
+        <div id="ro-scene"></div>
+        <div class="num"><span class="fps"><span id="ro-fps">0</span> fps · </span><span class="big" id="ro-points">0</span> pts</div>
+        <div id="ro-xr" class="ar-only"></div>
+      </div>
+      <div id="map" class="panel">
+        <canvas id="minimap" width="150" height="150"></canvas>
+        <div class="map-keys"><span><i style="background:#ffffff"></i>you</span><span><i style="background:#6fe3ff;border-radius:0"></i>team</span><span><i style="background:#ff8a4a;border-radius:0;transform:rotate(45deg)"></i>person</span></div>
+      </div>
+      <div id="reticle" class="panel" aria-hidden="true"></div>
+      <div id="wheel" class="panel"><canvas id="wheel-canvas" width="220" height="220"></canvas></div>
       <div id="legend" class="panel">
-        <div>Data age</div>
-        <div class="legend-bar"></div>
-        <div class="legend-labels"><span>now</span><span>5 s</span><span>30 s+</span></div>
-        <div class="legend-ghost"><span class="swatch"></span>person, fades 15 s after last seen</div>
+        <div class="legend-age"><span>age</span><div class="legend-bar"></div><span class="num">30 s</span></div>
+        <div class="legend-ghost"><span class="swatch"></span><span>person</span></div>
+        <div id="legend-outlines" class="legend-outline" hidden><span class="swatch"></span><span>outline</span></div>
         <div id="legend-responders" hidden></div>
       </div>
+      <div id="caption" class="panel">Replayed from a recorded walkthrough · point-based rendering</div>
+      <div id="progress" class="panel ar-only"><div class="bar"><div class="fill" id="progress-fill"></div></div><div class="time num" id="progress-time">0.0 s</div></div>
       <div id="controls" class="panel">
+        <span class="tag">Replay</span>
         <button id="btn-play">Pause</button>
         <button id="btn-restart">Restart</button>
         <select id="sel-speed" title="Replay speed">

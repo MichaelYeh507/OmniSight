@@ -77,6 +77,24 @@ export class Responder {
     this.state = null;
   }
 
+  /**
+   * Clip the trail to the far side of a wall plane ({ normal, d } with the normal pointing outside, scene-data
+   * parseWall), so a viewer outside sees the teammate's path inside the room but not the stretch beside them.
+   * null removes the clip. Planes are world space: pass sceneRoot's matrixWorld when it is not the identity.
+   */
+  setWallClip(plane, depth = 0, matrixWorld = null) {
+    if (!plane) {
+      this.trail.material.clippingPlanes = null;
+      this.trail.material.needsUpdate = true;
+      return;
+    }
+    // keep points with n.p - d < -depth, i.e. (-n).p + (d - depth) > 0 in three.js's clip convention
+    const clip = new THREE.Plane(new THREE.Vector3(-plane.normal[0], -plane.normal[1], -plane.normal[2]), plane.d - depth);
+    if (matrixWorld) clip.applyMatrix4(matrixWorld);
+    this.trail.material.clippingPlanes = [clip];
+    this.trail.material.needsUpdate = true;
+  }
+
   /** Move the frustum to the pose at replay time t and extend the trail up to it. */
   update(t) {
     const p = poseAt(this.trajectory, t);
@@ -123,6 +141,11 @@ export class Responders {
   /** [{ source, label, color }] for the HUD legend (empty with a single responder). */
   get legend() {
     return this.items.length > 1 ? this.items.map((r) => ({ source: r.source, label: r.labelText, color: r.colors.frustum })) : [];
+  }
+
+  /** Trail clip at a wall plane for every responder (see Responder.setWallClip). */
+  setWallClip(plane, depth = 0, matrixWorld = null) {
+    for (const r of this.items) r.setWallClip(plane, depth, matrixWorld);
   }
 
   /** Update every responder for replay time t; returns their states (one per visible source). */

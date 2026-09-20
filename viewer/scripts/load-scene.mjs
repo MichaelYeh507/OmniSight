@@ -2,6 +2,7 @@
 // B5 acceptance for a scene from A or C: validate-scene.mjs exit 0, then this exits 0 with no errors.
 //   node scripts/load-scene.mjs <scene>            scene folder name under public/scenes (dev server running)
 //   node scripts/load-scene.mjs <scene> --t 12     seek to 12 s before reporting (default: the end of the replay)
+//   node scripts/load-scene.mjs <scene> --params "renderer=spark&look=color"   extra URL parameters
 //   OMNI_URL=<base> for another server; OMNI_CHROME=<exe> if Chrome/Edge is not in the default place.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -13,6 +14,10 @@ const scene = args.find((a) => !a.startsWith('--'));
 if (!scene) throw new Error('usage: node scripts/load-scene.mjs <scene> [--t seconds]');
 const tIndex = args.indexOf('--t');
 const seekTo = tIndex >= 0 ? Number(args[tIndex + 1]) : null;
+const evalIndex = args.indexOf('--eval');
+const evalExpr = evalIndex >= 0 ? args[evalIndex + 1] : null; // extra expression evaluated in the page, reported as `eval`
+const paramsIndex = args.indexOf('--params');
+const extra = paramsIndex >= 0 && args[paramsIndex + 1] ? `&${args[paramsIndex + 1].replace(/^[?&]/, '')}` : '';
 const executable = process.env.OMNI_CHROME || [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
@@ -66,22 +71,28 @@ try {
     while (Date.now() < deadline) { if (await evaluate(expression)) return; await new Promise((ok) => setTimeout(ok, 100)); }
     throw new Error(`Timed out: ${expression}`);
   };
-  await command('Page.navigate', { url: `${base}?mode=commander&scene=${scene}` });
+  await command('Page.navigate', { url: `${base}?mode=commander&scene=${scene}${extra}` });
   await waitFor("!!window.__omni && (window.__omni.errors.length > 0 || (window.__omni.clockObj && window.__omni.points > 0))");
   if (await evaluate('window.__omni.clockObj ? true : false')) {
     await evaluate(`__omni.clockObj.pause(); __omni.clockObj.seek(${seekTo ?? '__omni.data.duration'})`);
     await waitFor(`Math.abs(__omni.clock - (${seekTo ?? '__omni.data.duration'})) < 1e-6`);
     await new Promise((ok) => setTimeout(ok, 500));
   }
-  const report = await evaluate(`({scene: __omni.scene, errors: __omni.errors, clock: __omni.clock,
+  const report = await evaluate(`({scene: __omni.scene, renderer: __omni.renderer || 'points', errors: __omni.errors, clock: __omni.clock,
     duration: __omni.data?.duration, staticPoints: __omni.data?.static.count, chunks: __omni.data?.manifest.chunks.length,
     alignmentPoints: __omni.data?.alignment?.count ?? 0, wallZ: __omni.data?.wallZ, floorY: __omni.data?.manifest.floor_y,
     trajectory: __omni.data?.trajectory.length, ghostFrames: __omni.ghostFrames, drawnPoints: __omni.points,
     ghost: __omni.ghost, responder: __omni.responder && {index: __omni.responder.index, position: __omni.responder.position},
     status: document.getElementById('status')?.textContent, banner: document.getElementById('error-banner')?.textContent})`);
+  let evalResult;
+  if (evalExpr) { // runs before the screenshot so an experiment (changing a uniform, say) shows in the picture
+    evalResult = await evaluate(evalExpr);
+    await evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))');
+  }
   const shot = await command('Page.captureScreenshot', { format: 'png' });
-  const file = resolve(output, `${scene}.png`);
+  const file = resolve(output, `${scene}${extra ? '-' + extra.slice(1).replace(/[^a-z0-9]+/gi, '_') : ''}.png`);
   await writeFile(file, Buffer.from(shot.data, 'base64'));
+  if (evalExpr) report.eval = evalResult;
   report.consoleErrors = consoleErrors;
   report.screenshot = file;
   console.log(JSON.stringify(report, null, 2));

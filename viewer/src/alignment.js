@@ -87,8 +87,7 @@ export function setupAlignment({ sceneRoot, alignmentCloud, overrides, omni, roo
     button.textContent = alignment.aligning ? 'Show x-ray' : 'Align wall';
     button.setAttribute('aria-pressed', String(alignment.aligning));
     button.setAttribute('aria-expanded', String(alignment.aligning));
-    $('ro-alignment-mode').textContent = alignment.aligning ? 'Alignment mode' : 'X-ray mode';
-    omni.alignment = { ...alignment.values };
+    omni.alignment = { ...alignment.values }; // the HUD paints the mode label from omni.aligning and omni.xray
     omni.aligning = alignment.aligning;
   };
   const changed = () => { status.textContent = 'Offsets changed. Tap Save offsets to keep them on this device.'; paint(); };

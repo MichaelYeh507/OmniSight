@@ -15,7 +15,9 @@
     "reverse": "adb reverse tcp:5173 tcp:5173",
     "qr": "node scripts/make-qr.mjs",
     "phone": "node scripts/phone-omni.mjs",
-    "load": "node scripts/load-scene.mjs"
+    "load": "node scripts/load-scene.mjs",
+    "render": "node scripts/render-video.mjs",
+    "composite": "node scripts/composite-video.mjs"
   },
   "dependencies": {
     "three": "0.186.0"

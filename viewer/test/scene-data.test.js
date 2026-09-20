@@ -131,3 +131,16 @@ test('clampWallHit leaves near hits alone and pulls grazing hits back to the rea
   const diagonal = clampWallHit([4, 3, -1.8], [0, 0, 0], 2.5);
   assert.ok(Math.abs(Math.hypot(diagonal.hit[0], diagonal.hit[1]) - 2.5) < 1e-9 && Math.abs(diagonal.hit[0] / diagonal.hit[1] - 4 / 3) < 1e-9);
 });
+
+test('planeDistance and intersectPlane: signed distance is positive outside, rays hit any oriented plane', async () => {
+  const { parseWall, planeDistance, intersectPlane } = await import('../src/scene-data.js');
+  const door = parseWall('-x:-0.69'); // room012: the corridor (x < -0.69) is outside
+  assert.ok(Math.abs(planeDistance(door, [-2.6, 0, -1.4]) - 1.91) < 1e-9);
+  assert.ok(Math.abs(planeDistance(door, [1, 0, 0]) + 1.69) < 1e-9);
+  const hit = intersectPlane([-2.6, 0, -1.4], [1, 0, 0], door);
+  assert.deepEqual(hit.map((v) => Number(v.toFixed(9))), [-0.69, 0, -1.4]);
+  assert.equal(intersectPlane([-2.6, 0, -1.4], [-1, 0, 0], door), null); // looking away
+  assert.equal(intersectPlane([-2.6, 0, -1.4], [0, 0, -1], door), null); // parallel
+  const contract = parseWall(null, -1.8);
+  assert.deepEqual(intersectPlane([0, 0, 0], [0, 0, -1], contract), intersectWallPlane([0, 0, 0], [0, 0, -1], -1.8));
+});

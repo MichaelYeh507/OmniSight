@@ -36,16 +36,17 @@ export async function loadScene(onProgress = () => {}) {
   if (!Array.isArray(manifest.chunks) || !manifest.chunks.length) throw new Error('manifest.json: no chunks listed');
 
   const chunkMetas = [...manifest.chunks].sort((a, b) => a.t_start - b.t_start);
-  const total = chunkMetas.length + 4;
+  const total = chunkMetas.length + 5;
   let done = 0;
   const tick = (label) => onProgress(++done, total, label);
 
-  const [chunkBuffers, alignBuffer, trajectory, peopleIndex, peopleBuffer] = await Promise.all([
+  const [chunkBuffers, alignBuffer, trajectory, peopleIndex, peopleBuffer, outlines] = await Promise.all([
     Promise.all(chunkMetas.map((c) => fetchBuffer(c.file).then((b) => (tick(c.file), b)))),
     manifest.alignment_chunk ? optional(fetchBuffer(manifest.alignment_chunk)).then((b) => (tick('alignment'), b)) : (tick('alignment'), undefined),
     optional(fetchJson('trajectory.json')).then((t) => (tick('trajectory'), t)),
     optional(fetchJson('people.json')).then((p) => (tick('people.json'), p)),
     optional(fetchBuffer('people.bin')).then((p) => (tick('people.bin'), p)),
+    optional(fetchJson('outlines.json')).then((o) => (tick('outlines'), o)), // viewer-side, optional: hand-annotated object boxes (src/outlines.js)
   ]);
 
   // --- static splats: merge every chunk into one set of arrays, in time order
@@ -82,6 +83,7 @@ export async function loadScene(onProgress = () => {}) {
     alignment,
     trajectory: traj,
     people,
+    outlines: Array.isArray(outlines) ? outlines.filter((b) => b && Array.isArray(b.center) && Array.isArray(b.size)) : [],
     bytes: chunkBuffers.reduce((s, b) => s + b.byteLength, 0) + (alignBuffer?.byteLength || 0) + (peopleBuffer?.byteLength || 0),
   };
 }

@@ -30,3 +30,7 @@ Thumbs.db
 
 # Vite dep cache if the dev server is ever started from the repo root by mistake
 .vite/
+
+# Pipeline output staging (scenes are produced here, then copied into viewer/public/scenes) and downloaded ML checkpoints
+data/scenes/
+*.pt
